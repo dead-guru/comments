@@ -28,7 +28,7 @@
         {{range .Sites}}<option value="{{.ID}}">{{.Name}} ({{.Key}})</option>{{end}}
       </select>
     </div>
-    <div class="field"><label>Pattern</label><input name="pattern" required></div>
+    <div class="field"><label>Text to match</label><input name="pattern" required><small class="muted">Plain case-insensitive substring, not a regular expression.</small></div>
     <div class="field"><label>Action</label><select name="action"><option>pending</option><option>reject</option><option>spam</option></select></div>
     <button class="primary">Add word ban</button>
   </form>

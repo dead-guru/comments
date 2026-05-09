@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +22,12 @@ const (
 	recentIPCommentLimit         = 30
 	reservedIdentityCommentLimit = 300
 	recentIPWindow               = 10 * time.Minute
+)
+
+var (
+	markdownLinkRe  = regexp.MustCompile(`(?i)(^|[^!])(\[[^\]]+\]\(https?://[^)\s]+\))`)
+	markdownImageRe = regexp.MustCompile(`(?i)!\[[^\]]*\]\(https?://[^)\s]+\)`)
+	rawURLRe        = regexp.MustCompile(`(?i)https?://[^\s)\]]+`)
 )
 
 func NewModerationService(moderation *repository.ModerationRepository, comments *repository.CommentRepository, events ...event.Publisher) *ModerationService {
@@ -67,7 +74,7 @@ func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input
 	}
 	body := strings.ToLower(input.BodyMarkdown)
 	for _, ban := range wordBans {
-		if matched, _ := regexp.MatchString(strings.ToLower(ban.Pattern), body); matched || strings.Contains(body, strings.ToLower(ban.Pattern)) {
+		if wordBanMatches(body, ban.Pattern) {
 			switch ban.Action {
 			case domain.WordBanReject:
 				return domain.ModerationDecision{Status: domain.CommentRejected, Reason: "word ban"}, nil
@@ -85,6 +92,11 @@ func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input
 		return domain.ModerationDecision{Status: domain.CommentApproved, Reason: "auto moderation"}, nil
 	}
 	return domain.ModerationDecision{Status: domain.CommentPending, Reason: "manual moderation"}, nil
+}
+
+func wordBanMatches(normalizedBody, pattern string) bool {
+	pattern = strings.ToLower(strings.TrimSpace(pattern))
+	return pattern != "" && strings.Contains(normalizedBody, pattern)
 }
 
 func rateLimitForIdentity(identity domain.IdentityResolution) (int, time.Duration) {
@@ -130,6 +142,10 @@ func (s *ModerationService) ListWordBans(ctx context.Context) ([]*domain.WordBan
 }
 
 func (s *ModerationService) AddWordBan(ctx context.Context, ban *domain.WordBan) error {
+	ban.Pattern = strings.TrimSpace(ban.Pattern)
+	if ban.Pattern == "" {
+		return nil
+	}
 	if err := s.moderation.CreateWordBan(ctx, ban); err != nil {
 		return err
 	}
@@ -172,5 +188,57 @@ func (s *ModerationService) EventsForComment(ctx context.Context, commentID stri
 }
 
 func linkCount(s string) int {
-	return strings.Count(s, "http://") + strings.Count(s, "https://") + strings.Count(s, "](")
+	markdownRanges := markdownLinkRanges(s)
+	imageRanges := markdownImageRanges(s)
+	withoutMarkdown := removeRanges(s, append(markdownRanges, imageRanges...))
+	return len(markdownRanges) + len(rawURLRe.FindAllString(withoutMarkdown, -1))
+}
+
+type textRange struct {
+	start int
+	end   int
+}
+
+func markdownLinkRanges(s string) []textRange {
+	matches := markdownLinkRe.FindAllStringSubmatchIndex(s, -1)
+	ranges := make([]textRange, 0, len(matches))
+	for _, match := range matches {
+		if len(match) >= 6 && match[4] >= 0 && match[5] >= 0 {
+			ranges = append(ranges, textRange{start: match[4], end: match[5]})
+		}
+	}
+	return ranges
+}
+
+func markdownImageRanges(s string) []textRange {
+	matches := markdownImageRe.FindAllStringIndex(s, -1)
+	ranges := make([]textRange, 0, len(matches))
+	for _, match := range matches {
+		ranges = append(ranges, textRange{start: match[0], end: match[1]})
+	}
+	return ranges
+}
+
+func removeRanges(s string, ranges []textRange) string {
+	if len(ranges) == 0 {
+		return s
+	}
+	sort.Slice(ranges, func(i, j int) bool {
+		return ranges[i].start < ranges[j].start
+	})
+	var b strings.Builder
+	last := 0
+	for _, r := range ranges {
+		if r.start < last {
+			continue
+		}
+		if r.start > last {
+			b.WriteString(s[last:r.start])
+		}
+		last = r.end
+	}
+	if last < len(s) {
+		b.WriteString(s[last:])
+	}
+	return b.String()
 }
