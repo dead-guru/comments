@@ -86,6 +86,8 @@ func normalizeTheme(raw string) string {
 	switch domain.Theme(raw) {
 	case domain.ThemeLight, domain.ThemeDark, domain.ThemeMinimal:
 		return raw
+	case "inherit":
+		return raw
 	default:
 		return string(domain.ThemeAuto)
 	}

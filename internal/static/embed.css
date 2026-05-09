@@ -51,6 +51,10 @@
   --dc-radius: 0;
 }
 
+:root[data-theme="inherit"] {
+  --dc-bg: transparent;
+}
+
 * { box-sizing: border-box; }
 
 body {

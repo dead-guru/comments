@@ -36,6 +36,11 @@
     var parentOrigin = safeOrigin(wrap ? wrap.dataset.origin : "");
     var heightTimer = 0;
 
+    window.addEventListener("message", function (event) {
+      if (!parentOrigin || event.origin !== parentOrigin || !event.data) return;
+      if (event.data.type === "deadcomments:theme") applyInheritedTheme(event.data.theme);
+    });
+
     function postHeight() {
       if (!parentOrigin) return;
       parent.postMessage({type: "deadcomments:height", height: document.documentElement.scrollHeight}, parentOrigin);
@@ -50,6 +55,30 @@
         if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.origin;
       } catch (_) {}
       return "";
+    }
+    function applyInheritedTheme(theme) {
+      if (document.documentElement.dataset.theme !== "inherit" || !theme) return;
+      var vars = {
+        text: "--dc-text",
+        muted: "--dc-muted",
+        border: "--dc-border",
+        card: "--dc-card",
+        surface: "--dc-surface",
+        accent: "--dc-accent",
+        danger: "--dc-danger",
+        success: "--dc-success",
+        successBg: "--dc-success-bg",
+        warning: "--dc-warning",
+        warningBg: "--dc-warning-bg",
+        font: "--dc-font"
+      };
+      Object.keys(vars).forEach(function (key) {
+        var value = theme[key];
+        if (typeof value === "string" && value.length > 0 && value.length < 160) {
+          document.documentElement.style.setProperty(vars[key], value);
+        }
+      });
+      sendHeight();
     }
     function readProfile() {
       try {

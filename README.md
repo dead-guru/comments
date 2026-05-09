@@ -79,6 +79,8 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
 
 Use explicit `data-page` keys. `data-page="auto"` is supported as a convenience and resolves to `location.pathname + location.search`.
 
+Use `data-theme="inherit"` when embedding into a page whose colors should drive the widget. The host script reads the target container's computed text/background colors and sends safe theme variables into the iframe.
+
 ## Docusaurus Test Stand
 
 In one terminal:

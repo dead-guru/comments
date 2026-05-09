@@ -52,3 +52,12 @@ func TestTrustedCommentOriginRequiresValidEmbedTokenForParentOrigin(t *testing.T
 		t.Fatalf("expected valid token parent origin, got %q", got)
 	}
 }
+
+func TestNormalizeThemeAllowsInheritedHostTheme(t *testing.T) {
+	if got := normalizeTheme("inherit"); got != "inherit" {
+		t.Fatalf("expected inherit theme, got %q", got)
+	}
+	if got := normalizeTheme("unknown"); got != "auto" {
+		t.Fatalf("expected unknown theme to fall back to auto, got %q", got)
+	}
+}
