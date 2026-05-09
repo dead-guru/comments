@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -32,14 +33,27 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			}
 		}
 		if len(kept) >= rl.limit {
+			retryAfter := rl.retryAfterLocked(now, kept)
 			rl.mu.Unlock()
-			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(retryAfter.Seconds())))
+			http.Error(w, fmt.Sprintf("rate limit exceeded; retry after %s", retryAfter.Round(time.Second)), http.StatusTooManyRequests)
 			return
 		}
 		rl.clients[ip] = append(kept, now)
 		rl.mu.Unlock()
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (rl *RateLimiter) retryAfterLocked(now time.Time, kept []time.Time) time.Duration {
+	if len(kept) == 0 {
+		return rl.window
+	}
+	retryAfter := rl.window - now.Sub(kept[0])
+	if retryAfter < time.Second {
+		return time.Second
+	}
+	return retryAfter.Round(time.Second)
 }
 
 func (rl *RateLimiter) sweepLocked(now time.Time) {

@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,5 +36,34 @@ func TestClientKeyStripsPort(t *testing.T) {
 	}
 	if got := clientKey("203.0.113.20"); got != "203.0.113.20" {
 		t.Fatalf("expected raw key fallback, got %q", got)
+	}
+}
+
+func TestRateLimiterReturnsRetryAfter(t *testing.T) {
+	rl := NewRateLimiter(1, time.Minute)
+	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	first := httptest.NewRequest(http.MethodPost, "/comments", nil)
+	first.RemoteAddr = "203.0.113.20:12345"
+	handler.ServeHTTP(httptest.NewRecorder(), first)
+
+	second := httptest.NewRequest(http.MethodPost, "/comments", nil)
+	second.RemoteAddr = "203.0.113.20:12345"
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, second)
+
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", rec.Code)
+	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Fatal("expected Retry-After header")
+	}
+	if body := rec.Result().Body; body != nil {
+		data, _ := io.ReadAll(body)
+		if !strings.Contains(string(data), "retry after") {
+			t.Fatalf("expected retry body, got %q", string(data))
+		}
 	}
 }

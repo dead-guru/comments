@@ -27,71 +27,87 @@ type CommentService struct {
 	events     event.Publisher
 }
 
+type CommentCreateResult struct {
+	Comment    *domain.Comment
+	Reason     string
+	RetryAfter time.Duration
+	Limit      int
+	Window     time.Duration
+}
+
 func NewCommentService(sites *repository.SiteRepository, pages *repository.PageRepository, comments *repository.CommentRepository, identities *IdentityService, moderation *ModerationService, markdown *MarkdownService, secret string, events ...event.Publisher) *CommentService {
 	return &CommentService{sites: sites, pages: pages, comments: comments, identities: identities, moderation: moderation, markdown: markdown, secret: secret, events: optionalPublisher(events)}
 }
 
 func (s *CommentService) Create(ctx context.Context, input domain.CommentCreateInput) (*domain.Comment, string, error) {
-	site, err := s.sites.ByKey(ctx, input.SiteKey)
+	result, err := s.CreateDetailed(ctx, input)
 	if err != nil {
 		return nil, "", err
 	}
+	return result.Comment, result.Reason, nil
+}
+
+func (s *CommentService) CreateDetailed(ctx context.Context, input domain.CommentCreateInput) (CommentCreateResult, error) {
+	site, err := s.sites.ByKey(ctx, input.SiteKey)
+	if err != nil {
+		return CommentCreateResult{}, err
+	}
 	if site == nil {
-		return nil, "", errors.New("site not found")
+		return CommentCreateResult{}, errors.New("site not found")
 	}
 	origin := firstNonEmpty(input.Origin, input.Referer)
 	if !NewSiteService(s.sites).OriginAllowed(site, origin) {
-		return nil, "", errors.New("origin is not allowed for this site")
+		return CommentCreateResult{}, errors.New("origin is not allowed for this site")
 	}
 	page, err := s.findOrCreatePage(ctx, site, input.PageKey, input.PageTitle, input.PageURL)
 	if err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
 	if page == nil {
-		return nil, "", errors.New("page not found")
+		return CommentCreateResult{}, errors.New("page not found")
 	}
 	if !page.CanPost() {
-		return nil, "", errors.New("page does not allow new comments")
+		return CommentCreateResult{}, errors.New("page does not allow new comments")
 	}
 	identity, err := s.identities.ResolveForComment(ctx, site.ID, input.AuthorName)
 	if err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
 	input.AuthorName = identity.DisplayName
 	input.BodyMarkdown = strings.TrimSpace(input.BodyMarkdown)
 	if input.AuthorName == "" {
-		return nil, "", errors.New("author name is required")
+		return CommentCreateResult{}, errors.New("author name is required")
 	}
 	if input.BodyMarkdown == "" {
-		return nil, "", errors.New("comment body is required")
+		return CommentCreateResult{}, errors.New("comment body is required")
 	}
 	if len([]rune(input.BodyMarkdown)) > site.MaxCommentLength {
-		return nil, "", errors.New("comment is too long")
+		return CommentCreateResult{}, errors.New("comment is too long")
 	}
 	var parent *domain.Comment
 	if input.ParentID != nil && *input.ParentID != "" {
 		if !site.AllowReplies {
-			return nil, "", errors.New("replies are disabled")
+			return CommentCreateResult{}, errors.New("replies are disabled")
 		}
 		parent, err = s.comments.ByID(ctx, *input.ParentID)
 		if err != nil {
-			return nil, "", err
+			return CommentCreateResult{}, err
 		}
 		if parent == nil || parent.PageID != page.ID {
-			return nil, "", errors.New("parent comment not found on this page")
+			return CommentCreateResult{}, errors.New("parent comment not found on this page")
 		}
 	}
 	bodyHTML, err := s.markdown.Render(input.BodyMarkdown)
 	if err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
 	ipHash := ""
 	if input.IP != "" {
 		ipHash = HashValue(s.secret, input.IP)
 	}
-	decision, err := s.moderation.Decide(ctx, site, input, ipHash)
+	decision, err := s.moderation.Decide(ctx, site, input, ipHash, identity)
 	if err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
 	c := &domain.Comment{
 		ID:                newID(),
@@ -139,16 +155,33 @@ func (s *CommentService) Create(ctx context.Context, input domain.CommentCreateI
 		c.UserAgentHash = &ua
 	}
 	if err := s.comments.Create(ctx, c); err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
 	c.Path = repository.CommentPath(parent, c.ID)
 	if parent == nil {
 		c.RootID = &c.ID
 	}
 	if err := s.comments.UpdateTreeFields(ctx, c.ID, c.RootID, c.Depth, c.Path); err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
 	_ = s.pages.Recount(ctx, page.ID)
+	payload := map[string]any{
+		"status":            c.Status,
+		"reason":            decision.Reason,
+		"author_name":       c.AuthorDisplayName,
+		"page_key":          page.PageKey,
+		"parent_id":         c.ParentID,
+		"tripcode_kind":     c.TripcodeKind,
+		"identity_id":       c.IdentityID,
+		"moderation_mode":   site.DefaultModerationMode,
+		"has_author_email":  c.AuthorEmailHash != nil,
+		"has_author_site":   c.AuthorWebsite != nil,
+		"body_markdown_len": len([]rune(c.BodyMarkdown)),
+	}
+	if decision.Limit > 0 {
+		payload["rate_limit"] = decision.Limit
+		payload["rate_window_sec"] = int(decision.Window.Seconds())
+	}
 	if err := publish(ctx, s.events, domain.Event{
 		Type:          domain.EventCommentCreated,
 		SiteID:        int64Ptr(site.ID),
@@ -156,23 +189,17 @@ func (s *CommentService) Create(ctx context.Context, input domain.CommentCreateI
 		CommentID:     stringPtr(c.ID),
 		AggregateType: "comment",
 		AggregateID:   c.ID,
-		Payload: map[string]any{
-			"status":            c.Status,
-			"reason":            decision.Reason,
-			"author_name":       c.AuthorDisplayName,
-			"page_key":          page.PageKey,
-			"parent_id":         c.ParentID,
-			"tripcode_kind":     c.TripcodeKind,
-			"identity_id":       c.IdentityID,
-			"moderation_mode":   site.DefaultModerationMode,
-			"has_author_email":  c.AuthorEmailHash != nil,
-			"has_author_site":   c.AuthorWebsite != nil,
-			"body_markdown_len": len([]rune(c.BodyMarkdown)),
-		},
+		Payload:       payload,
 	}); err != nil {
-		return nil, "", err
+		return CommentCreateResult{}, err
 	}
-	return c, decision.Reason, nil
+	return CommentCreateResult{
+		Comment:    c,
+		Reason:     decision.Reason,
+		RetryAfter: decision.RetryAfter,
+		Limit:      decision.Limit,
+		Window:     decision.Window,
+	}, nil
 }
 
 func publicEmailAvatarHash(email string) string {

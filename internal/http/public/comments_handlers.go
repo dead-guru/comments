@@ -2,10 +2,12 @@ package public
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -64,7 +66,7 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 	locale := i18n.Normalize(payload.Locale, r.Header.Get("Accept-Language"))
 	origin := h.trustedCommentOrigin(r, siteKey, pageKey, payload.ParentOrigin, payload.EmbedToken)
 	referer := firstValue(r.Header.Get("Referer"))
-	comment, reason, err := h.comments.Create(r.Context(), domain.CommentCreateInput{
+	result, err := h.comments.CreateDetailed(r.Context(), domain.CommentCreateInput{
 		SiteKey:       siteKey,
 		PageKey:       pageKey,
 		PageTitle:     payload.PageTitle,
@@ -84,14 +86,24 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, createErrorMessage(locale, err), statusForCreateError(err))
 		return
 	}
+	comment := result.Comment
+	reason := result.Reason
 	status := statusForCreatedComment(comment.Status)
-	message := createMessage(locale, comment.Status, reason)
+	message := createMessageWithRetry(locale, comment.Status, reason, result.RetryAfter)
 	response := map[string]any{
 		"id":      comment.ID,
 		"status":  comment.Status,
 		"message": message,
 		"reason":  reason,
 		"comment": toPublicComment(comment),
+	}
+	if result.RetryAfter > 0 {
+		response["retry_after_seconds"] = secondsCeil(result.RetryAfter)
+		response["rate_limit"] = map[string]any{
+			"limit":          result.Limit,
+			"window_seconds": secondsCeil(result.Window),
+		}
+		w.Header().Set("Retry-After", fmt.Sprintf("%d", secondsCeil(result.RetryAfter)))
 	}
 	if status >= http.StatusBadRequest {
 		response["error"] = message
@@ -170,6 +182,10 @@ func createErrorMessage(locale string, err error) string {
 }
 
 func createMessage(locale string, status domain.CommentStatus, reason string) string {
+	return createMessageWithRetry(locale, status, reason, 0)
+}
+
+func createMessageWithRetry(locale string, status domain.CommentStatus, reason string, retryAfter time.Duration) string {
 	if status == domain.CommentApproved {
 		return i18n.Text(locale, "comment_posted")
 	}
@@ -180,12 +196,40 @@ func createMessage(locale string, status domain.CommentStatus, reason string) st
 		return i18n.Text(locale, "pending_message")
 	}
 	if status == domain.CommentRejected {
+		if reason == "rate limit" && retryAfter > 0 {
+			return fmt.Sprintf(i18n.Text(locale, "rejected_rate_limit_retry"), humanRetryAfter(locale, retryAfter))
+		}
 		return rejectedMessage(locale, reason)
 	}
 	if status == domain.CommentSpam {
 		return spamMessage(locale, reason)
 	}
 	return i18n.Text(locale, "not_posted")
+}
+
+func humanRetryAfter(locale string, d time.Duration) string {
+	seconds := secondsCeil(d)
+	if seconds < 60 {
+		if strings.HasPrefix(locale, "uk") {
+			return "менше ніж 1 хвилину"
+		}
+		return "less than 1 minute"
+	}
+	minutes := (seconds + 59) / 60
+	if strings.HasPrefix(locale, "uk") {
+		return fmt.Sprintf("%d хв", minutes)
+	}
+	if minutes == 1 {
+		return "1 minute"
+	}
+	return fmt.Sprintf("%d minutes", minutes)
+}
+
+func secondsCeil(d time.Duration) int {
+	if d <= 0 {
+		return 0
+	}
+	return int((d + time.Second - 1) / time.Second)
 }
 
 func rejectedMessage(locale string, reason string) string {

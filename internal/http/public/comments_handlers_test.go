@@ -80,6 +80,14 @@ func TestCreateMessageLocalizesModerationOutcome(t *testing.T) {
 	}
 }
 
+func TestCreateMessageIncludesRateLimitRetry(t *testing.T) {
+	got := createMessageWithRetry("en", domain.CommentRejected, "rate limit", 90*time.Second)
+	want := "Comment rejected: too many comments were submitted recently. Try again in about 2 minutes."
+	if got != want {
+		t.Fatalf("expected retry message %q, got %q", want, got)
+	}
+}
+
 func TestAPICreateCommentRejectsInvalidJSON(t *testing.T) {
 	h := newPublicHandlerTestDeps(t)
 	router := newPublicCommentsRouter(h, nil)

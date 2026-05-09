@@ -37,6 +37,9 @@ type ModerationEvent struct {
 }
 
 type ModerationDecision struct {
-	Status CommentStatus
-	Reason string
+	Status     CommentStatus
+	Reason     string
+	RetryAfter time.Duration
+	Limit      int
+	Window     time.Duration
 }

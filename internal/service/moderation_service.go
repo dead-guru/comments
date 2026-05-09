@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"strings"
+	"time"
 
 	"deadcomments/internal/domain"
 	"deadcomments/internal/event"
@@ -16,13 +17,17 @@ type ModerationService struct {
 	events     event.Publisher
 }
 
-const recentIPCommentLimit = 30
+const (
+	recentIPCommentLimit         = 30
+	reservedIdentityCommentLimit = 300
+	recentIPWindow               = 10 * time.Minute
+)
 
 func NewModerationService(moderation *repository.ModerationRepository, comments *repository.CommentRepository, events ...event.Publisher) *ModerationService {
 	return &ModerationService{moderation: moderation, comments: comments, events: optionalPublisher(events)}
 }
 
-func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input domain.CommentCreateInput, ipHash string) (domain.ModerationDecision, error) {
+func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input domain.CommentCreateInput, ipHash string, identity domain.IdentityResolution) (domain.ModerationDecision, error) {
 	if strings.TrimSpace(input.Honeypot) != "" {
 		return domain.ModerationDecision{Status: domain.CommentSpam, Reason: "honeypot"}, nil
 	}
@@ -34,12 +39,19 @@ func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input
 		if banned {
 			return domain.ModerationDecision{Status: domain.CommentRejected, Reason: "ip banned"}, nil
 		}
-		count, err := s.comments.RecentIPCount(ctx, ipHash)
+		limit, window := rateLimitForIdentity(identity)
+		stats, err := s.comments.RecentIPStats(ctx, ipHash, time.Now().UTC().Add(-window))
 		if err != nil {
 			return domain.ModerationDecision{}, err
 		}
-		if count >= recentIPCommentLimit {
-			return domain.ModerationDecision{Status: domain.CommentRejected, Reason: "rate limit"}, nil
+		if stats.Count >= limit {
+			return domain.ModerationDecision{
+				Status:     domain.CommentRejected,
+				Reason:     "rate limit",
+				RetryAfter: retryAfter(window, stats.Oldest),
+				Limit:      limit,
+				Window:     window,
+			}, nil
 		}
 		dupes, err := s.comments.RecentSameIP(ctx, ipHash, input.BodyMarkdown)
 		if err != nil {
@@ -73,6 +85,24 @@ func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input
 		return domain.ModerationDecision{Status: domain.CommentApproved, Reason: "auto moderation"}, nil
 	}
 	return domain.ModerationDecision{Status: domain.CommentPending, Reason: "manual moderation"}, nil
+}
+
+func rateLimitForIdentity(identity domain.IdentityResolution) (int, time.Duration) {
+	if identity.TripcodeKind == domain.TripcodeReserved && identity.IdentityID != nil {
+		return reservedIdentityCommentLimit, recentIPWindow
+	}
+	return recentIPCommentLimit, recentIPWindow
+}
+
+func retryAfter(window time.Duration, oldest time.Time) time.Duration {
+	if oldest.IsZero() {
+		return window
+	}
+	until := oldest.Add(window).Sub(time.Now().UTC())
+	if until < time.Second {
+		return time.Second
+	}
+	return until.Round(time.Second)
 }
 
 func (s *ModerationService) AddIPBan(ctx context.Context, ban *domain.IPBan) error {

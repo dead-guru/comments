@@ -4,12 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"deadcomments/internal/domain"
 )
 
 type CommentRepository struct {
 	db *sql.DB
+}
+
+type RecentCommentStats struct {
+	Count  int
+	Oldest time.Time
 }
 
 func NewCommentRepository(db *sql.DB) *CommentRepository {
@@ -129,14 +135,26 @@ func (r *CommentRepository) UpdateBody(ctx context.Context, id, markdown, html s
 
 func (r *CommentRepository) RecentSameIP(ctx context.Context, ipHash, body string) (int, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM comments WHERE ip_hash=? AND body_markdown=? AND created_at >= datetime('now', '-1 day')`, ipHash, body).Scan(&n)
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM comments WHERE ip_hash=? AND body_markdown=? AND created_at >= ?`, ipHash, body, time.Now().UTC().Add(-24*time.Hour).Format(timeFormat)).Scan(&n)
 	return n, err
 }
 
 func (r *CommentRepository) RecentIPCount(ctx context.Context, ipHash string) (int, error) {
-	var n int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM comments WHERE ip_hash=? AND created_at >= datetime('now', '-10 minutes')`, ipHash).Scan(&n)
-	return n, err
+	stats, err := r.RecentIPStats(ctx, ipHash, time.Now().UTC().Add(-10*time.Minute))
+	return stats.Count, err
+}
+
+func (r *CommentRepository) RecentIPStats(ctx context.Context, ipHash string, since time.Time) (RecentCommentStats, error) {
+	var stats RecentCommentStats
+	var oldest sql.NullString
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*), MIN(created_at) FROM comments WHERE ip_hash=? AND created_at >= ?`, ipHash, since.UTC().Format(timeFormat)).Scan(&stats.Count, &oldest)
+	if err != nil {
+		return RecentCommentStats{}, err
+	}
+	if oldest.Valid {
+		stats.Oldest = parseTime(oldest.String)
+	}
+	return stats, nil
 }
 
 func (r *CommentRepository) MarkIPSpam(ctx context.Context, siteID int64, ipHash string) error {

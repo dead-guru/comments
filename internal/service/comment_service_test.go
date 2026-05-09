@@ -321,12 +321,38 @@ func TestRecentIPRateLimitRejectsWithReason(t *testing.T) {
 	limited := validInput(nil)
 	limited.PageKey = "/posts/rate-limit"
 	limited.BodyMarkdown = "One comment too many"
-	comment, reason, err := deps.commentSvc.Create(context.Background(), limited)
+	result, err := deps.commentSvc.CreateDetailed(context.Background(), limited)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if comment.Status != domain.CommentRejected || reason != "rate limit" {
-		t.Fatalf("expected rejected rate limit, got %s %q", comment.Status, reason)
+	if result.Comment.Status != domain.CommentRejected || result.Reason != "rate limit" {
+		t.Fatalf("expected rejected rate limit, got %s %q", result.Comment.Status, result.Reason)
+	}
+	if result.RetryAfter <= 0 || result.Limit != recentIPCommentLimit || result.Window != recentIPWindow {
+		t.Fatalf("expected retry metadata, got retry=%s limit=%d window=%s", result.RetryAfter, result.Limit, result.Window)
+	}
+}
+
+func TestReservedIdentityUsesHigherRateLimit(t *testing.T) {
+	deps := newTestDeps(t)
+	site := createSite(t, deps, domain.ModerationAuto)
+	createReservedIdentity(t, deps, &site.ID, "UT3USW", "correct-secret")
+
+	for i := 0; i < recentIPCommentLimit+1; i++ {
+		input := validInput(nil)
+		input.PageKey = "/posts/reserved-rate-limit"
+		input.AuthorName = "UT3USW##correct-secret"
+		input.BodyMarkdown = "Reserved identity comment " + strconv.Itoa(i)
+		comment, reason, err := deps.commentSvc.Create(context.Background(), input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if comment.Status != domain.CommentApproved || reason != "auto moderation" {
+			t.Fatalf("expected reserved identity to pass default limit, got %s %q at %d", comment.Status, reason, i)
+		}
+		if comment.IdentityID == nil {
+			t.Fatalf("expected reserved identity id at %d", i)
+		}
 	}
 }
 
