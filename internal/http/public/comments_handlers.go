@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"deadcomments/internal/domain"
+	"deadcomments/internal/i18n"
 	"deadcomments/internal/service"
 )
 
@@ -53,11 +54,14 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 		PageURL       string  `json:"page_url"`
 		ParentOrigin  string  `json:"parent_origin"`
 		EmbedToken    string  `json:"embed_token"`
+		Locale        string  `json:"locale"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		writeJSONError(w, "invalid json", http.StatusBadRequest)
+		locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
+		writeJSONError(w, i18n.Text(locale, "invalid_json"), http.StatusBadRequest)
 		return
 	}
+	locale := i18n.Normalize(payload.Locale, r.Header.Get("Accept-Language"))
 	origin := h.trustedCommentOrigin(r, siteKey, pageKey, payload.ParentOrigin, payload.EmbedToken)
 	referer := firstValue(r.Header.Get("Referer"))
 	comment, reason, err := h.comments.Create(r.Context(), domain.CommentCreateInput{
@@ -77,11 +81,11 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 		UserAgent:     r.UserAgent(),
 	})
 	if err != nil {
-		writeJSONError(w, err.Error(), statusForCreateError(err))
+		writeJSONError(w, createErrorMessage(locale, err), statusForCreateError(err))
 		return
 	}
 	status := statusForCreatedComment(comment.Status)
-	message := createMessage(comment.Status, reason)
+	message := createMessage(locale, comment.Status, reason)
 	response := map[string]any{
 		"id":      comment.ID,
 		"status":  comment.Status,
@@ -102,77 +106,113 @@ func (h *Handlers) APIPreviewComment(w http.ResponseWriter, r *http.Request) {
 		BodyMarkdown string `json:"body_markdown"`
 		ParentOrigin string `json:"parent_origin"`
 		EmbedToken   string `json:"embed_token"`
+		Locale       string `json:"locale"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		writeJSONError(w, "invalid json", http.StatusBadRequest)
+		locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
+		writeJSONError(w, i18n.Text(locale, "invalid_json"), http.StatusBadRequest)
 		return
 	}
+	locale := i18n.Normalize(payload.Locale, r.Header.Get("Accept-Language"))
 	site, err := h.sites.ByKey(r.Context(), siteKey)
 	if err != nil || site == nil {
-		writeJSONError(w, "site not found", http.StatusNotFound)
+		writeJSONError(w, i18n.Text(locale, "comments_unavailable"), http.StatusNotFound)
 		return
 	}
 	origin := h.trustedCommentOrigin(r, siteKey, pageKey, payload.ParentOrigin, payload.EmbedToken)
 	if !h.sites.OriginAllowed(site, origin) {
-		writeJSONError(w, "origin is not allowed for this site", http.StatusForbidden)
+		writeJSONError(w, i18n.Text(locale, "origin_not_allowed"), http.StatusForbidden)
 		return
 	}
 	if len([]rune(payload.BodyMarkdown)) > site.MaxCommentLength {
-		writeJSONError(w, "comment is too long", http.StatusBadRequest)
+		writeJSONError(w, i18n.Text(locale, "comment_too_long"), http.StatusBadRequest)
 		return
 	}
 	bodyHTML, err := h.markdown.Render(payload.BodyMarkdown)
 	if err != nil {
-		writeJSONError(w, "preview unavailable", http.StatusInternalServerError)
+		writeJSONError(w, i18n.Text(locale, "preview_unavailable"), http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, map[string]string{"body_html": bodyHTML}, http.StatusOK)
 }
 
-func createMessage(status domain.CommentStatus, reason string) string {
+func createErrorMessage(locale string, err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "author name"), strings.Contains(msg, "name is required"):
+		return i18n.Text(locale, "required_name")
+	case strings.Contains(msg, "body"), strings.Contains(msg, "comment is required"):
+		return i18n.Text(locale, "required_body")
+	case strings.Contains(msg, "too long"):
+		return i18n.Text(locale, "comment_too_long")
+	case strings.Contains(msg, "origin"):
+		return i18n.Text(locale, "origin_not_allowed")
+	case strings.Contains(msg, "parent"):
+		return i18n.Text(locale, "parent_invalid")
+	case strings.Contains(msg, "replies"):
+		return i18n.Text(locale, "replies_disabled")
+	case strings.Contains(msg, "page does not allow"):
+		return i18n.Text(locale, "page_posting_closed")
+	case strings.Contains(msg, "reserved"):
+		return i18n.Text(locale, "reserved_name")
+	case strings.Contains(msg, "rate limit"):
+		return i18n.Text(locale, "rejected_rate_limit")
+	case strings.Contains(msg, "banned"):
+		return i18n.Text(locale, "rejected_ip_banned")
+	case strings.Contains(msg, "not found"):
+		return i18n.Text(locale, "comments_unavailable")
+	default:
+		return i18n.Text(locale, "comments_unavailable")
+	}
+}
+
+func createMessage(locale string, status domain.CommentStatus, reason string) string {
 	if status == domain.CommentApproved {
-		return "Comment posted."
+		return i18n.Text(locale, "comment_posted")
 	}
 	if status == domain.CommentPending {
 		if reason == "word ban" {
-			return "Comment submitted and waiting for moderation because it matched a moderation rule."
+			return i18n.Text(locale, "pending_rule_message")
 		}
-		return "Comment submitted and waiting for moderation."
+		return i18n.Text(locale, "pending_message")
 	}
 	if status == domain.CommentRejected {
-		return rejectedMessage(reason)
+		return rejectedMessage(locale, reason)
 	}
 	if status == domain.CommentSpam {
-		return spamMessage(reason)
+		return spamMessage(locale, reason)
 	}
-	return "Comment was not posted."
+	return i18n.Text(locale, "not_posted")
 }
 
-func rejectedMessage(reason string) string {
+func rejectedMessage(locale string, reason string) string {
 	switch reason {
 	case "ip banned":
-		return "Comment rejected: this network is blocked for this site."
+		return i18n.Text(locale, "rejected_ip_banned")
 	case "rate limit":
-		return "Comment rejected: too many comments were submitted recently. Please try again later."
+		return i18n.Text(locale, "rejected_rate_limit")
 	case "word ban":
-		return "Comment rejected by this site's moderation rules."
+		return i18n.Text(locale, "rejected_word_ban")
 	default:
-		return "Comment rejected by moderation."
+		return i18n.Text(locale, "rejected_default")
 	}
 }
 
-func spamMessage(reason string) string {
+func spamMessage(locale string, reason string) string {
 	switch reason {
 	case "honeypot":
-		return "Comment rejected by spam protection."
+		return i18n.Text(locale, "spam_honeypot")
 	case "duplicate body":
-		return "Comment rejected by spam protection: duplicate comment."
+		return i18n.Text(locale, "spam_duplicate")
 	case "too many links":
-		return "Comment rejected by spam protection: too many links."
+		return i18n.Text(locale, "spam_links")
 	case "word ban":
-		return "Comment rejected by this site's moderation rules."
+		return i18n.Text(locale, "spam_word_ban")
 	default:
-		return "Comment rejected by spam protection."
+		return i18n.Text(locale, "spam_default")
 	}
 }
 

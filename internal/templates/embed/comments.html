@@ -1,38 +1,38 @@
 <!doctype html>
-<html lang="en" data-theme="{{.Theme}}">
+<html lang="{{.Locale}}" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/embed.css">
 </head>
 <body>
-  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-can-reply="{{.CanReply}}">
+  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-locale="{{.Locale}}" data-can-reply="{{.CanReply}}">
     {{if .Error}}
       <div class="dc-error">{{.Error}}</div>
     {{else if eq .Page.State "hidden"}}
-      <div class="dc-state">Comments are hidden.</div>
+      <div class="dc-state">{{index .T "comments_hidden"}}</div>
     {{else}}
       <div class="dc-titlebar">
-        <h2 class="dc-title">Comments {{if gt .Page.ApprovedCount 0}}<span>{{.Page.ApprovedCount}}</span>{{end}}</h2>
-        <div class="dc-sort" aria-label="Sort comments">
-          <button class="dc-sort-btn {{if eq .Sort "oldest"}}is-active{{end}}" type="button" data-sort="oldest">Oldest</button>
-          <button class="dc-sort-btn {{if eq .Sort "newest"}}is-active{{end}}" type="button" data-sort="newest">Newest</button>
-          <button class="dc-sort-btn {{if eq .Sort "best"}}is-active{{end}}" type="button" data-sort="best">Best</button>
+        <h2 class="dc-title">{{index .T "comments"}} {{if gt .Page.ApprovedCount 0}}<span>{{.Page.ApprovedCount}}</span>{{end}}</h2>
+        <div class="dc-sort" aria-label="{{index .T "sort_comments"}}">
+          <button class="dc-sort-btn {{if eq .Sort "oldest"}}is-active{{end}}" type="button" data-sort="oldest">{{index .T "oldest"}}</button>
+          <button class="dc-sort-btn {{if eq .Sort "newest"}}is-active{{end}}" type="button" data-sort="newest">{{index .T "newest"}}</button>
+          <button class="dc-sort-btn {{if eq .Sort "best"}}is-active{{end}}" type="button" data-sort="best">{{index .T "best"}}</button>
         </div>
       </div>
       {{if .Comments}}
       <section class="dc-thread">
-        {{range .Comments}}{{template "embed_comment" dict "Comment" . "Root" true "CanReply" (eq $.Page.State "open")}}{{end}}
+        {{range .Comments}}{{template "embed_comment" dict "Comment" . "Root" true "CanReply" (eq $.Page.State "open") "T" $.T "Locale" $.Locale}}{{end}}
       </section>
       {{else}}
-      <div class="dc-empty">No comments yet.</div>
+      <div class="dc-empty">{{index .T "no_comments_yet"}}</div>
       {{end}}
       {{if eq .Page.State "open"}}
-        {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken "MaxLength" .MaxLength}}
+        {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken "MaxLength" .MaxLength "T" .T}}
       {{else if eq .Page.State "locked"}}
-        <p class="dc-state">Comments are locked.</p>
+        <p class="dc-state">{{index .T "comments_locked"}}</p>
       {{else if eq .Page.State "archived"}}
-        <p class="dc-state">This discussion is archived.</p>
+        <p class="dc-state">{{index .T "comments_archived"}}</p>
       {{end}}
     {{end}}
   </main>
@@ -44,6 +44,7 @@
     var heightTimer = 0;
     var pollTimer = 0;
     var localPending = [];
+    var i18n = {{json .T}};
 
     window.addEventListener("message", function (event) {
       if (!parentOrigin || event.origin !== parentOrigin || !event.data) return;
@@ -120,6 +121,9 @@
     function text(value) {
       return document.createTextNode(value || "");
     }
+    function tr(key) {
+      return (i18n && i18n[key]) || key;
+    }
     function safeURL(raw) {
       try {
         var parsed = new URL(raw || "");
@@ -128,7 +132,7 @@
       return "";
     }
     function authorName(comment) {
-      return comment.author_display_name || comment.author_name || "Anonymous";
+      return comment.author_display_name || comment.author_name || tr("anonymous");
     }
     function commentAuthorFromNode(node) {
       var author = node ? node.querySelector(".dc-author") : null;
@@ -159,14 +163,16 @@
         ["hour", 3600],
         ["minute", 60]
       ];
-      if (seconds < 45) return "commented just now";
+      if (seconds < 45) return tr("time_just_now");
+      var locale = wrap.dataset.locale || "en";
+      var formatter = new Intl.RelativeTimeFormat(locale, {numeric: "auto"});
       for (var i = 0; i < units.length; i += 1) {
         var value = Math.floor(seconds / units[i][1]);
         if (value >= 1 && seconds < 2592000) {
-          return "commented " + value + " " + units[i][0] + (value === 1 ? "" : "s") + " ago";
+          return tr("time_commented_prefix") + " " + formatter.format(-value, units[i][0]);
         }
       }
-      return "commented " + date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      return tr("time_commented_prefix") + " " + date.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
     }
     function fullTime(value) {
       var date = new Date(value || "");
@@ -227,7 +233,7 @@
       if (comment.status === "pending") {
         var pending = document.createElement("span");
         pending.className = "dc-badge dc-badge-pending";
-        pending.appendChild(text("pending review"));
+        pending.appendChild(text(tr("pending_review")));
         author.appendChild(pending);
       }
       header.appendChild(author);
@@ -246,7 +252,7 @@
           replying.type = "button";
           replying.dataset.commentJump = comment.parent_id;
         }
-        replying.appendChild(text("replying to @" + comment.replying_to_author));
+        replying.appendChild(text(tr("replying_to") + comment.replying_to_author));
         meta.appendChild(replying);
       }
       header.appendChild(meta);
@@ -264,7 +270,7 @@
         reply.className = "dc-action-btn";
         reply.type = "button";
         reply.dataset.replyTo = comment.id;
-        reply.appendChild(text("Reply"));
+        reply.appendChild(text(tr("reply")));
         actions.appendChild(reply);
       }
       box.appendChild(actions);
@@ -299,7 +305,7 @@
         if (!empty) {
           empty = document.createElement("div");
           empty.className = "dc-empty";
-          empty.appendChild(text("No comments yet."));
+          empty.appendChild(text(tr("no_comments_yet")));
         }
         if (thread) {
           thread.replaceWith(empty);
@@ -485,14 +491,15 @@
       var body = form.querySelector('[name="body_markdown"]');
       if (!preview || !body) return;
       if (!body.value.trim()) {
-        preview.textContent = "Nothing to preview.";
+        preview.textContent = tr("nothing_to_preview");
         return;
       }
-      preview.textContent = "Rendering preview...";
+      preview.textContent = tr("rendering_preview");
       var payload = {
         body_markdown: body.value,
         parent_origin: wrap.dataset.origin || "",
-        embed_token: form.querySelector('[name="embed_token"]').value || ""
+        embed_token: form.querySelector('[name="embed_token"]').value || "",
+        locale: wrap.dataset.locale || "en"
       };
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/preview";
       try {
@@ -500,12 +507,12 @@
         var data = {};
         try { data = await res.json(); } catch (_) {}
         if (!res.ok) {
-          preview.textContent = data.error || "Preview unavailable.";
+          preview.textContent = data.error || tr("preview_unavailable");
           return;
         }
-        preview.innerHTML = data.body_html || "<p>Nothing to preview.</p>";
+        preview.innerHTML = data.body_html || "<p>" + tr("nothing_to_preview") + "</p>";
       } catch (_) {
-        preview.textContent = "Preview unavailable.";
+        preview.textContent = tr("preview_unavailable");
       } finally {
         sendHeight();
       }
@@ -596,11 +603,12 @@
       payload.parent_origin = wrap.dataset.origin || "";
       payload.page_title = wrap.dataset.title || "";
       payload.page_url = wrap.dataset.url || "";
+      payload.locale = wrap.dataset.locale || "en";
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments";
       var button = form.querySelector("button[type='submit'], .dc-btn.primary");
       if (button) {
         button.dataset.label = button.textContent;
-        button.textContent = "Submitting...";
+        button.textContent = tr("submitting");
         button.classList.add("is-loading");
         button.disabled = true;
       }
@@ -609,7 +617,7 @@
         var data = {};
         try { data = await res.json(); } catch (_) {}
         if (!res.ok) {
-          showFormMessage(form, false, data.message || data.error || "Unable to submit comment.");
+          showFormMessage(form, false, data.message || data.error || tr("unable_submit"));
           return;
         }
         if (data.status === "approved" || data.status === "pending") {
@@ -620,18 +628,18 @@
             appendSubmittedComment(data.comment, payload.parent_id);
           }
         }
-        showFormMessage(form, true, data.message || "Comment submitted.");
+        showFormMessage(form, true, data.message || tr("comment_submitted"));
         if (form.classList.contains("reply")) closeReplyForm();
         sendHeight();
       } catch (_) {
-        showFormMessage(form, false, "Unable to submit comment. Check your connection and try again.");
+        showFormMessage(form, false, tr("unable_submit"));
       } finally {
         form.dataset.submitting = "false";
         form.removeAttribute("aria-busy");
         if (button) {
           button.disabled = false;
           button.classList.remove("is-loading");
-          button.textContent = button.dataset.label || "Submit comment";
+          button.textContent = button.dataset.label || tr("submit_comment");
           delete button.dataset.label;
         }
       }
@@ -654,7 +662,7 @@
     sendHeight();
   })();
   </script>
-  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true "EmbedToken" .EmbedToken "MaxLength" .MaxLength}}</template>
+  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true "EmbedToken" .EmbedToken "MaxLength" .MaxLength "T" .T}}</template>
 </body>
 </html>
 
@@ -671,20 +679,20 @@
         {{if .Comment.AuthorWebsite}}<a class="dc-author-link" href="{{.Comment.AuthorWebsite}}" target="_blank" rel="nofollow ugc noopener noreferrer">{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</a>{{else}}{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}{{end}}
         {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
         {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
-        {{if eq .Comment.Status "pending"}}<span class="dc-badge dc-badge-pending">pending review</span>{{end}}
+        {{if eq .Comment.Status "pending"}}<span class="dc-badge dc-badge-pending">{{index .T "pending_review"}}</span>{{end}}
       </span>
       <span class="dc-meta">
-        <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
-        {{if .Comment.ReplyingToAuthor}}<button class="dc-replying" type="button" data-comment-jump="{{.Comment.ParentID}}">replying to @{{.Comment.ReplyingToAuthor}}</button>{{end}}
+        <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt $.Locale}}</time>
+        {{if .Comment.ReplyingToAuthor}}<button class="dc-replying" type="button" data-comment-jump="{{.Comment.ParentID}}">{{index .T "replying_to"}}{{.Comment.ReplyingToAuthor}}</button>{{end}}
       </span>
     </header>
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
     <div class="dc-actions">
-      {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button>{{end}}
+      {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">{{index .T "reply"}}</button>{{end}}
     </div>
   </div>
 </article>
-{{range .Comment.Children}}{{template "embed_comment" dict "Comment" . "Root" false "CanReply" $.CanReply}}{{end}}
+{{range .Comment.Children}}{{template "embed_comment" dict "Comment" . "Root" false "CanReply" $.CanReply "T" $.T "Locale" $.Locale}}{{end}}
 {{end}}
 
 {{define "embed_form"}}
@@ -695,39 +703,39 @@
   <label class="dc-hp">Leave this empty<input name="honeypot" autocomplete="off"></label>
   <div class="dc-row">
     <label class="dc-field">
-      <span>Name</span>
+      <span>{{index .T "name"}}</span>
       <input class="dc-input" name="author_name" required maxlength="160">
       <small class="dc-help-row">
-        <span>Use Name##secret for a tripcode</span>
+        <span>{{index .T "use_tripcode"}}</span>
         <details class="dc-help">
-          <summary aria-label="What is a tripcode?">?</summary>
-          <span class="dc-help-popover">A tripcode is a public, stable marker generated from a secret, so others can recognize the same anonymous commenter without an account. Reserved names require the correct secret and may show a verified badge.</span>
+          <summary aria-label="{{index .T "tripcode_help_label"}}">?</summary>
+          <span class="dc-help-popover">{{index .T "tripcode_help"}}</span>
         </details>
       </small>
     </label>
     <label class="dc-field">
-      <span>Email (optional, not shown)</span>
+      <span>{{index .T "email_optional_not_shown"}}</span>
       <input class="dc-input" name="author_email" type="email">
-      <small>Used only for avatar</small>
+      <small>{{index .T "used_only_for_avatar"}}</small>
     </label>
   </div>
   {{if not .Reply}}
-  <label class="dc-field"><span>Website (optional)</span><input class="dc-input" name="author_website" type="url"></label>
+  <label class="dc-field"><span>{{index .T "website_optional"}}</span><input class="dc-input" name="author_website" type="url"></label>
   {{end}}
   <div class="dc-editor">
-    <div class="dc-editor-tabs" role="tablist" aria-label="Comment editor">
-      <button class="dc-editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="write">Write</button>
-      <button class="dc-editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="preview">Preview</button>
+    <div class="dc-editor-tabs" role="tablist" aria-label="{{index .T "comment"}}">
+      <button class="dc-editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="write">{{index .T "write"}}</button>
+      <button class="dc-editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="preview">{{index .T "preview"}}</button>
     </div>
-    <label class="dc-field" data-write-panel><span>Comment</span><textarea class="dc-textarea" name="body_markdown" required maxlength="{{.MaxLength}}"></textarea></label>
+    <label class="dc-field" data-write-panel><span>{{index .T "comment"}}</span><textarea class="dc-textarea" name="body_markdown" required maxlength="{{.MaxLength}}"></textarea></label>
     <div class="dc-preview" data-preview-panel hidden>
-      <div class="dc-preview-body dc-body" data-preview-body>Nothing to preview.</div>
+      <div class="dc-preview-body dc-body" data-preview-body>{{index .T "nothing_to_preview"}}</div>
     </div>
     <div class="dc-editor-foot"><small data-char-count>0 / {{.MaxLength}}</small></div>
   </div>
   <div class="dc-submit-row">
-    <button class="dc-btn primary">{{if .Reply}}Submit reply{{else}}Submit comment{{end}}</button>
-    {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>Cancel</button>{{end}}
+    <button class="dc-btn primary">{{if .Reply}}{{index .T "submit_reply"}}{{else}}{{index .T "submit_comment"}}{{end}}</button>
+    {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>{{index .T "cancel"}}</button>{{end}}
   </div>
   </div>
 </form>

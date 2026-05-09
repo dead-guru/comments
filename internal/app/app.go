@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	adminhttp "deadcomments/internal/http/admin"
 	dcmiddleware "deadcomments/internal/http/middleware"
 	publichttp "deadcomments/internal/http/public"
+	"deadcomments/internal/i18n"
 	"deadcomments/internal/markdown"
 	"deadcomments/internal/observability"
 	"deadcomments/internal/repository"
@@ -54,11 +56,25 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 
 	funcs := template.FuncMap{
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
-		"commentTime": func(t time.Time) string {
+		"json": func(v any) template.JS {
+			data, err := json.Marshal(v)
+			if err != nil {
+				return template.JS("{}")
+			}
+			return template.JS(data)
+		},
+		"commentTime": func(t time.Time, locales ...string) string {
 			if t.IsZero() {
 				return ""
 			}
-			return "commented " + t.Format("Jan 2, 2006")
+			locale := i18n.LocaleEnglish
+			if len(locales) > 0 {
+				locale = i18n.Normalize(locales[0], "")
+			}
+			if locale == i18n.LocaleUkrainian {
+				return i18n.Text(locale, "time_commented_prefix") + " " + t.Format("02.01.2006")
+			}
+			return i18n.Text(locale, "time_commented_prefix") + " " + t.Format("Jan 2, 2006")
 		},
 		"machineTime": func(t time.Time) string {
 			if t.IsZero() {

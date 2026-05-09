@@ -65,10 +65,18 @@ func TestCreateMessageExplainsModerationOutcome(t *testing.T) {
 			if got := statusForCreatedComment(tt.status); got != tt.code {
 				t.Fatalf("expected status code %d, got %d", tt.code, got)
 			}
-			if got := createMessage(tt.status, tt.reason); got != tt.message {
+			if got := createMessage("en", tt.status, tt.reason); got != tt.message {
 				t.Fatalf("expected message %q, got %q", tt.message, got)
 			}
 		})
+	}
+}
+
+func TestCreateMessageLocalizesModerationOutcome(t *testing.T) {
+	got := createMessage("uk", domain.CommentPending, "manual moderation")
+	want := "Коментар надіслано й очікує модерації."
+	if got != want {
+		t.Fatalf("expected localized message %q, got %q", want, got)
 	}
 }
 

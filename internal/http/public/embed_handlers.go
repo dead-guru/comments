@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"deadcomments/internal/domain"
+	"deadcomments/internal/i18n"
 	"deadcomments/internal/service"
 )
 
@@ -38,23 +39,24 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 	pageKey := strings.TrimSpace(r.URL.Query().Get("page"))
 	theme := normalizeTheme(r.URL.Query().Get("theme"))
 	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
+	locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
 	if siteKey == "" || pageKey == "" {
-		h.renderEmbedError(w, "Comments are not configured.")
+		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_not_configured"))
 		return
 	}
 	site, err := h.sites.ByKey(r.Context(), siteKey)
 	if err != nil || site == nil {
-		h.renderEmbedError(w, "Comments are unavailable.")
+		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_unavailable"))
 		return
 	}
 	parentOrigin := originFromRequest(r)
 	if !h.sites.OriginAllowed(site, parentOrigin) {
-		h.renderEmbedError(w, "Comments are unavailable on this origin.")
+		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_unavailable_origin"))
 		return
 	}
 	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort)
 	if err != nil || page == nil {
-		h.renderEmbedError(w, "Comments are unavailable.")
+		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_unavailable"))
 		return
 	}
 	data := map[string]any{
@@ -63,6 +65,8 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		"Page":         page,
 		"Comments":     comments,
 		"Theme":        theme,
+		"Locale":       locale,
+		"T":            i18n.Embed(locale),
 		"Sort":         sort,
 		"CanReply":     page.State == domain.PageOpen,
 		"ParentOrigin": parentOrigin,
@@ -77,12 +81,14 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) renderEmbedError(w http.ResponseWriter, msg string) {
+func (h *Handlers) renderEmbedError(w http.ResponseWriter, locale string, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = h.tmpl.ExecuteTemplate(w, "comments.html", map[string]any{
-		"Error": msg,
-		"Theme": domain.ThemeAuto,
-		"Sort":  domain.CommentSortOldest,
+		"Error":  msg,
+		"Theme":  domain.ThemeAuto,
+		"Locale": locale,
+		"T":      i18n.Embed(locale),
+		"Sort":   domain.CommentSortOldest,
 	})
 }
 

@@ -73,13 +73,16 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
   data-site="my-blog"
   data-page="/posts/my-article"
   data-target="#comments"
-  data-theme="auto">
+  data-theme="auto"
+  data-locale="en">
 </script>
 ```
 
 Use explicit `data-page` keys. `data-page="auto"` is supported as a convenience and resolves to `location.pathname + location.search`.
 
 Use `data-theme="inherit"` when embedding into a page whose colors should drive the widget. The host script reads the target container's computed text/background colors and sends safe theme variables into the iframe.
+
+Use `data-locale="uk"` for Ukrainian widget copy. Supported locales are `en` and `uk`; unsupported values fall back to English. If `data-locale` is omitted, the widget uses the host page `<html lang>` or browser language.
 
 Public comment lists support `sort=oldest`, `sort=newest`, and `sort=best`. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
 
@@ -207,6 +210,8 @@ SQLite migrations live in `migrations/`. The app enables foreign keys, WAL mode,
 The service never stores raw IP addresses, raw user-agent strings, or raw commenter email addresses. IP, email, and user-agent values are HMAC-SHA256 hashes using `SERVER_SECRET`. If a commenter provides an email, deadcomments also stores a Gravatar-compatible MD5 avatar hash so the public widget can show an avatar without storing the email itself. Markdown is rendered with goldmark GFM and sanitized with bluemonday. Admin POST routes use CSRF tokens. Admin sessions use HttpOnly SameSite cookies.
 
 Public comments can be arbitrarily deep in storage. The iframe renders root comments normally, visually flattens deeper replies under the root, and adds a `replying to @author` label instead of indenting forever.
+
+The public iframe UI is localized through a small server-side catalog shared with embed JavaScript and public API response messages. Keep public copy in `internal/i18n/embed.go` instead of hardcoding strings in templates or handlers.
 
 ## Events
 
