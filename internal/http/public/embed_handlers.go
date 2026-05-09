@@ -41,6 +41,7 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 	pageKey := strings.TrimSpace(r.URL.Query().Get("page"))
 	theme := normalizeTheme(r.URL.Query().Get("theme"))
 	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
+	inputPosition := normalizeInputPosition(r.URL.Query().Get("input_position"))
 	locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
 	if siteKey == "" || pageKey == "" {
 		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_not_configured"))
@@ -62,21 +63,22 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := map[string]any{
-		"SiteKey":      siteKey,
-		"PageKey":      pageKey,
-		"Page":         page,
-		"Comments":     comments,
-		"Theme":        theme,
-		"Locale":       locale,
-		"T":            i18n.Embed(locale),
-		"Sort":         sort,
-		"CanReply":     page.State == domain.PageOpen,
-		"ParentOrigin": parentOrigin,
-		"EmbedToken":   h.signEmbedToken(siteKey, pageKey, parentOrigin),
-		"MaxLength":    site.MaxCommentLength,
-		"PageTitle":    r.URL.Query().Get("title"),
-		"PageURL":      r.URL.Query().Get("url"),
-		"CSPNonce":     newCSPNonce(),
+		"SiteKey":       siteKey,
+		"PageKey":       pageKey,
+		"Page":          page,
+		"Comments":      comments,
+		"Theme":         theme,
+		"Locale":        locale,
+		"T":             i18n.Embed(locale),
+		"Sort":          sort,
+		"InputPosition": inputPosition,
+		"CanReply":      page.State == domain.PageOpen,
+		"ParentOrigin":  parentOrigin,
+		"EmbedToken":    h.signEmbedToken(siteKey, pageKey, parentOrigin),
+		"MaxLength":     site.MaxCommentLength,
+		"PageTitle":     r.URL.Query().Get("title"),
+		"PageURL":       r.URL.Query().Get("url"),
+		"CSPNonce":      newCSPNonce(),
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	setEmbedCSP(w, data["CSPNonce"].(string))
@@ -120,6 +122,13 @@ func normalizeTheme(raw string) string {
 	default:
 		return string(domain.ThemeAuto)
 	}
+}
+
+func normalizeInputPosition(raw string) string {
+	if strings.EqualFold(strings.TrimSpace(raw), "top") {
+		return "top"
+	}
+	return "bottom"
 }
 
 func fileExists(path string) bool {

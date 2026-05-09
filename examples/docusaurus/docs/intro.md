@@ -14,8 +14,10 @@ This page is configured with an explicit page key.
   data-site="docs-demo"
   data-page="/docs/intro"
   data-target="#comments"
-  data-theme="auto">
+  data-theme="auto"
+  data-sort="oldest"
+  data-input-position="bottom">
 </script>
 ```
 
-<div className="deadcomments-demo" data-deadcomments-page="/docs/intro"></div>
+<div className="deadcomments-demo" data-deadcomments-page="/docs/intro" data-input-position="bottom"></div>

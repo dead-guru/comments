@@ -19,6 +19,8 @@
   var page = script.getAttribute("data-page");
   var targetSelector = script.getAttribute("data-target") || "#comments";
   var theme = script.getAttribute("data-theme") || "auto";
+  var sort = normalizeSort(script.getAttribute("data-sort") || "oldest");
+  var inputPosition = normalizeInputPosition(script.getAttribute("data-input-position") || "bottom");
   var rawLocale = script.getAttribute("data-locale") || document.documentElement.lang || navigator.language || "en";
   var locale = normalizeLocale(rawLocale);
   var target = document.querySelector(targetSelector) || script.parentElement;
@@ -31,6 +33,8 @@
   src.searchParams.set("site", site);
   src.searchParams.set("page", page);
   src.searchParams.set("theme", theme);
+  src.searchParams.set("sort", sort);
+  src.searchParams.set("input_position", inputPosition);
   src.searchParams.set("locale", locale);
   src.searchParams.set("parent_origin", window.location.origin);
   src.searchParams.set("title", document.title || "");
@@ -126,6 +130,13 @@
     var normalized = String(value || "").toLowerCase().replace(/_/g, "-");
     var language = normalized.split("-")[0];
     return SUPPORTED_LOCALES.indexOf(language) !== -1 ? language : "en";
+  }
+  function normalizeSort(value) {
+    value = String(value || "").toLowerCase();
+    return value === "newest" || value === "best" ? value : "oldest";
+  }
+  function normalizeInputPosition(value) {
+    return String(value || "").toLowerCase() === "top" ? "top" : "bottom";
   }
   function loadingText(value, key) {
     var catalog = {

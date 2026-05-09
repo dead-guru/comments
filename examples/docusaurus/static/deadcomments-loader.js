@@ -16,6 +16,8 @@
       script.setAttribute("data-page", node.getAttribute("data-deadcomments-page"));
       script.setAttribute("data-target", "#" + node.id);
       script.setAttribute("data-theme", node.getAttribute("data-theme") || "auto");
+      script.setAttribute("data-sort", node.getAttribute("data-sort") || "oldest");
+      script.setAttribute("data-input-position", node.getAttribute("data-input-position") || "bottom");
       node.after(script);
     });
   }

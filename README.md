@@ -78,6 +78,8 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
   data-page="/posts/my-article"
   data-target="#comments"
   data-theme="auto"
+  data-sort="oldest"
+  data-input-position="bottom"
   data-locale="en">
 </script>
 ```
@@ -88,7 +90,9 @@ Use `data-theme="inherit"` when embedding into a page whose colors should drive 
 
 Use `data-locale="uk"` for Ukrainian widget copy. Supported locales are `en` and `uk`; unsupported values fall back to English. If `data-locale` is omitted, the widget uses the host page `<html lang>` or browser language.
 
-Public comment lists support `sort=oldest`, `sort=newest`, and `sort=best`. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
+Use `data-input-position="top"` to render the main comment form above the comment list. The default is `bottom`.
+
+Use `data-sort="oldest"`, `data-sort="newest"`, or `data-sort="best"` to choose the default public comment order. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
 
 ## Docusaurus Test Stand
 

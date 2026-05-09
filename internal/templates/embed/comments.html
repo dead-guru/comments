@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="/static/embed.css">
 </head>
 <body>
-  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-locale="{{.Locale}}" data-can-reply="{{.CanReply}}">
+  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-input-position="{{.InputPosition}}" data-locale="{{.Locale}}" data-can-reply="{{.CanReply}}">
     {{if .Error}}
       <div class="dc-error">{{.Error}}</div>
     {{else if eq .Page.State "hidden"}}
@@ -20,6 +20,9 @@
           <button class="dc-sort-btn {{if eq .Sort "best"}}is-active{{end}}" type="button" data-sort="best">{{index .T "best"}}</button>
         </div>
       </div>
+      {{if and (eq .Page.State "open") (eq .InputPosition "top")}}
+        {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken "MaxLength" .MaxLength "T" .T}}
+      {{end}}
       {{if .Comments}}
       <section class="dc-thread">
         {{range .Comments}}{{template "embed_comment" dict "Comment" . "Root" true "CanReply" (eq $.Page.State "open") "T" $.T "Locale" $.Locale}}{{end}}
@@ -27,7 +30,7 @@
       {{else}}
       <div class="dc-empty">{{index .T "no_comments_yet"}}</div>
       {{end}}
-      {{if eq .Page.State "open"}}
+      {{if and (eq .Page.State "open") (ne .InputPosition "top")}}
         {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken "MaxLength" .MaxLength "T" .T}}
       {{else if eq .Page.State "locked"}}
         <p class="dc-state">{{index .T "comments_locked"}}</p>

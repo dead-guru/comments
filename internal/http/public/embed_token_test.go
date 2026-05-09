@@ -96,3 +96,15 @@ func TestNormalizeThemeAllowsInheritedHostTheme(t *testing.T) {
 		t.Fatalf("expected unknown theme to fall back to auto, got %q", got)
 	}
 }
+
+func TestNormalizeInputPosition(t *testing.T) {
+	if got := normalizeInputPosition("top"); got != "top" {
+		t.Fatalf("expected top, got %q", got)
+	}
+	if got := normalizeInputPosition(" bottom "); got != "bottom" {
+		t.Fatalf("expected bottom, got %q", got)
+	}
+	if got := normalizeInputPosition("unknown"); got != "bottom" {
+		t.Fatalf("expected unknown input position to fall back to bottom, got %q", got)
+	}
+}
