@@ -453,15 +453,6 @@
       if (!wrap || !wrap.dataset.site || !wrap.dataset.page || document.hidden) return;
       loadSortedComments(wrap.dataset.sort || "oldest", {skipWhenReplyOpen: true});
     }
-    function commentURL(id) {
-      try {
-        var base = new URL(wrap.dataset.url || parentOrigin || window.location.href);
-        base.hash = "dc-" + id;
-        return base.toString();
-      } catch (_) {
-        return "#dc-" + id;
-      }
-    }
     function highlightComment(id) {
       if (!id) return false;
       var node = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"]');
