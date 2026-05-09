@@ -212,12 +212,6 @@
       reply.dataset.replyTo = comment.id;
       reply.appendChild(text("Reply"));
       actions.appendChild(reply);
-      var copy = document.createElement("button");
-      copy.className = "dc-action-btn";
-      copy.type = "button";
-      copy.dataset.copyLink = comment.id;
-      copy.appendChild(text("Copy link"));
-      actions.appendChild(copy);
       box.appendChild(actions);
       article.appendChild(box);
       return article;
@@ -286,19 +280,6 @@
       if (!hash) hash = window.location.hash || "";
       if (hash.indexOf("#dc-") !== 0) return "";
       return decodeURIComponent(hash.slice(4));
-    }
-    async function copyCommentLink(id, button) {
-      var link = commentURL(id);
-      try {
-        await navigator.clipboard.writeText(link);
-        if (button) {
-          var old = button.textContent;
-          button.textContent = "Copied";
-          window.setTimeout(function () { button.textContent = old; }, 1200);
-        }
-      } catch (_) {
-        window.prompt("Copy comment link", link);
-      }
     }
     function commentLength(form) {
       var input = form.querySelector('[name="body_markdown"]');
@@ -416,8 +397,6 @@
       }
       var jump = event.target.closest("[data-comment-jump]");
       if (jump) highlightComment(jump.getAttribute("data-comment-jump"));
-      var copy = event.target.closest("[data-copy-link]");
-      if (copy) copyCommentLink(copy.getAttribute("data-copy-link"), copy);
     });
     document.addEventListener("input", function (event) {
       var form = event.target.closest(".dc-form");
@@ -491,7 +470,6 @@
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
     <div class="dc-actions">
       {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button>{{end}}
-      <button class="dc-action-btn" type="button" data-copy-link="{{.Comment.ID}}">Copy link</button>
     </div>
   </div>
 </article>
