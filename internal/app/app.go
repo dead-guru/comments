@@ -72,9 +72,9 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 				locale = i18n.Normalize(locales[0], "")
 			}
 			if locale == i18n.LocaleUkrainian {
-				return i18n.Text(locale, "time_commented_prefix") + " " + t.Format("02.01.2006")
+				return t.Format("02.01.2006")
 			}
-			return i18n.Text(locale, "time_commented_prefix") + " " + t.Format("Jan 2, 2006")
+			return t.Format("Jan 2, 2006")
 		},
 		"machineTime": func(t time.Time) string {
 			if t.IsZero() {

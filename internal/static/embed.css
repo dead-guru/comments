@@ -232,7 +232,10 @@ body {
   color: var(--dc-warning);
   background: var(--dc-warning-bg);
 }
-.dc-time, .dc-replying { color: var(--dc-muted); font-size: 12px; }
+.dc-time, .dc-replying, .dc-meta-sep { color: var(--dc-muted); font-size: 12px; }
+.dc-meta-sep {
+  margin: 0 6px;
+}
 .dc-replying {
   appearance: none;
   border: 0;
@@ -245,11 +248,6 @@ body {
 .dc-replying:focus-visible {
   color: var(--dc-accent);
   text-decoration: underline;
-}
-.dc-replying::before {
-  content: "·";
-  margin-right: 8px;
-  color: var(--dc-muted);
 }
 .dc-body { padding: 12px; overflow-wrap: anywhere; }
 .dc-body > :first-child { margin-top: 0; }
@@ -274,6 +272,9 @@ body {
   background: transparent;
   color: var(--dc-muted);
   padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -284,6 +285,11 @@ body {
 .dc-action-btn:focus-visible {
   color: var(--dc-accent);
   text-decoration: underline;
+}
+.dc-action-icon {
+  font-size: 14px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 .dc-btn {
   appearance: none;
@@ -504,6 +510,15 @@ body {
 
 @keyframes dc-spin {
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 @media (max-width: 600px) {

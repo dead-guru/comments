@@ -169,10 +169,10 @@
       for (var i = 0; i < units.length; i += 1) {
         var value = Math.floor(seconds / units[i][1]);
         if (value >= 1 && seconds < 2592000) {
-          return tr("time_commented_prefix") + " " + formatter.format(-value, units[i][0]);
+          return formatter.format(-value, units[i][0]);
         }
       }
-      return tr("time_commented_prefix") + " " + date.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
+      return date.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
     }
     function fullTime(value) {
       var date = new Date(value || "");
@@ -246,6 +246,11 @@
       time.appendChild(text(formatTime(comment.created_at)));
       meta.appendChild(time);
       if (comment.replying_to_author) {
+        var separator = document.createElement("span");
+        separator.className = "dc-meta-sep";
+        separator.setAttribute("aria-hidden", "true");
+        separator.appendChild(text("·"));
+        meta.appendChild(separator);
         var replying = document.createElement(comment.parent_id ? "button" : "span");
         replying.className = "dc-replying";
         if (comment.parent_id) {
@@ -270,6 +275,12 @@
         reply.className = "dc-action-btn";
         reply.type = "button";
         reply.dataset.replyTo = comment.id;
+        reply.setAttribute("aria-label", tr("reply_to") + " " + authorName(comment));
+        var replyIcon = document.createElement("span");
+        replyIcon.className = "dc-action-icon";
+        replyIcon.setAttribute("aria-hidden", "true");
+        replyIcon.appendChild(text("↩"));
+        reply.appendChild(replyIcon);
         reply.appendChild(text(tr("reply")));
         actions.appendChild(reply);
       }
@@ -527,12 +538,28 @@
       form.dataset.ready = "true";
       applyProfile(form);
       updateCharacterCount(form);
+      wireFormDescriptions(form);
+    }
+    function wireFormDescriptions(form) {
+      var suffix = Math.random().toString(36).slice(2);
+      var nameHelp = form.querySelector("[data-name-help]");
+      var body = form.querySelector('[name="body_markdown"]');
+      var counter = form.querySelector("[data-char-count]");
+      if (nameHelp && !nameHelp.id) nameHelp.id = "dc-name-help-" + suffix;
+      var name = form.querySelector('[name="author_name"]');
+      if (name && nameHelp) name.setAttribute("aria-describedby", nameHelp.id);
+      if (counter && !counter.id) counter.id = "dc-comment-count-" + suffix;
+      if (body && counter) body.setAttribute("aria-describedby", counter.id);
     }
     function showFormMessage(form, ok, message) {
       var old = form.querySelector(".dc-form-message");
       if (old) old.remove();
       var msg = document.createElement("div");
+      msg.id = "dc-form-message-" + Math.random().toString(36).slice(2);
       msg.className = "dc-form-message " + (ok ? "is-success" : "is-error");
+      msg.setAttribute("role", "alert");
+      msg.setAttribute("aria-live", "assertive");
+      msg.setAttribute("aria-atomic", "true");
       msg.appendChild(text(message));
       var row = form.querySelector(".dc-submit-row");
       if (row) {
@@ -541,7 +568,7 @@
         form.appendChild(msg);
       }
       sendHeight();
-      window.setTimeout(function () { msg.remove(); sendHeight(); }, ok ? 2200 : 5000);
+      window.setTimeout(function () { msg.remove(); sendHeight(); }, ok ? 4500 : 6000);
     }
     function mainForm() {
       return document.querySelector(".dc-form:not(.reply)");
@@ -683,12 +710,12 @@
       </span>
       <span class="dc-meta">
         <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt $.Locale}}</time>
-        {{if .Comment.ReplyingToAuthor}}<button class="dc-replying" type="button" data-comment-jump="{{.Comment.ParentID}}">{{index .T "replying_to"}}{{.Comment.ReplyingToAuthor}}</button>{{end}}
+        {{if .Comment.ReplyingToAuthor}}<span class="dc-meta-sep" aria-hidden="true">·</span><button class="dc-replying" type="button" data-comment-jump="{{.Comment.ParentID}}">{{index .T "replying_to"}}{{.Comment.ReplyingToAuthor}}</button>{{end}}
       </span>
     </header>
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
     <div class="dc-actions">
-      {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">{{index .T "reply"}}</button>{{end}}
+      {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}" aria-label="{{index .T "reply_to"}} {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}"><span class="dc-action-icon" aria-hidden="true">↩</span>{{index .T "reply"}}</button>{{end}}
     </div>
   </div>
 </article>
@@ -705,7 +732,7 @@
     <label class="dc-field">
       <span>{{index .T "name"}}</span>
       <input class="dc-input" name="author_name" required maxlength="160">
-      <small class="dc-help-row">
+      <small class="dc-help-row" data-name-help>
         <span>{{index .T "use_tripcode"}}</span>
         <details class="dc-help">
           <summary aria-label="{{index .T "tripcode_help_label"}}">?</summary>
