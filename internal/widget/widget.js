@@ -19,7 +19,8 @@
   var page = script.getAttribute("data-page");
   var targetSelector = script.getAttribute("data-target") || "#comments";
   var theme = script.getAttribute("data-theme") || "auto";
-  var locale = script.getAttribute("data-locale") || document.documentElement.lang || navigator.language || "en";
+  var rawLocale = script.getAttribute("data-locale") || document.documentElement.lang || navigator.language || "en";
+  var locale = normalizeLocale(rawLocale);
   var target = document.querySelector(targetSelector) || script.parentElement;
   var minHeight = 260;
 
@@ -44,7 +45,7 @@
     return value;
   }
   function parseRGB(value) {
-    var match = String(value || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([.\d]+))?\)/i);
+    var match = String(value || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d*\.?\d+))?\)/i);
     if (!match) return null;
     return {
       r: Number(match[1]),
@@ -120,7 +121,6 @@
       return value ? names[key] + ":" + value : "";
     }).filter(Boolean).join(";");
   }
-  var inherited = theme === "inherit" ? inheritedTheme() : null;
 
   function normalizeLocale(value) {
     var normalized = String(value || "").toLowerCase().replace(/_/g, "-");
@@ -148,6 +148,26 @@
       "</style></head><body><div class=\"dc-loading\" aria-live=\"polite\"><div class=\"dc-title\">" + loadingText(locale, "comments") + "</div><div class=\"dc-small\">" + loadingText(locale, "loading") + "</div><div class=\"dc-card\"></div><div class=\"dc-line\"></div></div></body></html>";
   }
 
+  var cachedInheritedTheme = null;
+  var cachedInheritedThemeSignature = null;
+  function inheritedThemeSignature() {
+    var computed = window.getComputedStyle(target);
+    return [
+      computed.color,
+      hostBackground(target),
+      computed.fontFamily
+    ].join("|");
+  }
+  function currentInheritedTheme() {
+    var signature = inheritedThemeSignature();
+    if (cachedInheritedThemeSignature !== signature) {
+      cachedInheritedThemeSignature = signature;
+      cachedInheritedTheme = inheritedTheme();
+    }
+    return cachedInheritedTheme;
+  }
+  var inherited = theme === "inherit" ? currentInheritedTheme() : null;
+
   var iframe = document.createElement("iframe");
   iframe.srcdoc = loadingDocument(theme, inherited);
   iframe.title = loadingText(locale, "comments");
@@ -162,7 +182,9 @@
 
   function sendInheritedTheme() {
     if (theme !== "inherit" || !iframe.contentWindow) return;
-    iframe.contentWindow.postMessage({type: "deadcomments:theme", theme: inheritedTheme()}, src.origin);
+    var inheritedData = currentInheritedTheme();
+    if (!inheritedData) return;
+    iframe.contentWindow.postMessage({type: "deadcomments:theme", theme: inheritedData}, src.origin);
   }
   var themeTimer = null;
   iframe.addEventListener("load", sendInheritedTheme);
@@ -184,8 +206,8 @@
       var itemHeight = Number(event.data.height) || 0;
       if (Number.isFinite(top) && top >= 0) {
         var iframeRect = iframe.getBoundingClientRect();
-        var targetY = window.pageYOffset + iframeRect.top + top - Math.max(MIN_SCROLL_MARGIN_PX, (window.innerHeight - itemHeight) / 2);
-        window.scrollTo({top: Math.max(0, targetY), behavior: "smooth"});
+        var scrollTargetY = window.pageYOffset + iframeRect.top + top - Math.max(MIN_SCROLL_MARGIN_PX, (window.innerHeight - itemHeight) / 2);
+        window.scrollTo({top: Math.max(0, scrollTargetY), behavior: "smooth"});
       } else {
         iframe.scrollIntoView({block: "center", behavior: "smooth"});
       }
