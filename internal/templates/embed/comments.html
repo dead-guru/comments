@@ -413,6 +413,9 @@
       var form = event.target.closest(".dc-form");
       if (!form) return;
       event.preventDefault();
+      if (form.dataset.submitting === "true") return;
+      form.dataset.submitting = "true";
+      form.setAttribute("aria-busy", "true");
       var payload = Object.fromEntries(new FormData(form).entries());
       saveProfile(form);
       payload.parent_id = payload.parent_id || null;
@@ -422,18 +425,25 @@
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments";
       var button = form.querySelector("button[type='submit'], .dc-btn.primary");
       if (button) button.disabled = true;
-      var res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
-      var data = {};
-      try { data = await res.json(); } catch (_) {}
-      if (button) button.disabled = false;
-      if (!res.ok) {
-        showFormMessage(form, false, data.message || data.error || "Unable to submit comment.");
-        return;
+      try {
+        var res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
+        var data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (!res.ok) {
+          showFormMessage(form, false, data.message || data.error || "Unable to submit comment.");
+          return;
+        }
+        if (data.status === "approved" || data.status === "pending") appendSubmittedComment(data.comment, payload.parent_id);
+        showFormMessage(form, true, data.message || "Comment submitted.");
+        if (form.classList.contains("reply")) closeReplyForm();
+        sendHeight();
+      } catch (_) {
+        showFormMessage(form, false, "Unable to submit comment. Check your connection and try again.");
+      } finally {
+        form.dataset.submitting = "false";
+        form.removeAttribute("aria-busy");
+        if (button) button.disabled = false;
       }
-      if (data.status === "approved" || data.status === "pending") appendSubmittedComment(data.comment, payload.parent_id);
-      showFormMessage(form, true, data.message || "Comment submitted.");
-      if (form.classList.contains("reply")) closeReplyForm();
-      sendHeight();
     });
     document.querySelectorAll(".dc-time[data-time]").forEach(function (node) {
       node.textContent = formatTime(node.dataset.time) || node.textContent;
