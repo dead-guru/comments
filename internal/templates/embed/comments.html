@@ -754,15 +754,20 @@
       <button class="dc-editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="write">{{index .T "write"}}</button>
       <button class="dc-editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="preview">{{index .T "preview"}}</button>
     </div>
-    <label class="dc-field" data-write-panel><span>{{index .T "comment"}}</span><textarea class="dc-textarea" name="body_markdown" required maxlength="{{.MaxLength}}"></textarea></label>
-    <div class="dc-preview" data-preview-panel hidden>
-      <div class="dc-preview-body dc-body" data-preview-body>{{index .T "nothing_to_preview"}}</div>
+    <div class="dc-editor-main">
+      <label class="dc-field dc-editor-write" data-write-panel>
+        <span class="dc-sr-only">{{index .T "comment"}}</span>
+        <textarea class="dc-textarea" name="body_markdown" required maxlength="{{.MaxLength}}" placeholder="{{index .T "comment_placeholder"}}"></textarea>
+      </label>
+      <div class="dc-preview" data-preview-panel hidden>
+        <div class="dc-preview-body dc-body" data-preview-body>{{index .T "nothing_to_preview"}}</div>
+      </div>
     </div>
-    <div class="dc-editor-foot"><small data-char-count>0 / {{.MaxLength}}</small></div>
+    <div class="dc-editor-foot"><small class="dc-markdown-note">{{index .T "markdown_supported"}}</small><small data-char-count>0 / {{.MaxLength}}</small></div>
   </div>
   <div class="dc-submit-row">
-    <button class="dc-btn primary">{{if .Reply}}{{index .T "submit_reply"}}{{else}}{{index .T "submit_comment"}}{{end}}</button>
     {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>{{index .T "cancel"}}</button>{{end}}
+    <button class="dc-btn primary" type="submit">{{if .Reply}}{{index .T "submit_reply"}}{{else}}{{index .T "submit_comment"}}{{end}}</button>
   </div>
   </div>
 </form>
