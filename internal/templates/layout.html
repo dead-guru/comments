@@ -27,7 +27,7 @@
       {{if .Admin}}
       <form method="post" action="/admin/logout">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button>Log out</button>
+        <button type="submit" aria-label="Log out">Log out</button>
       </form>
       {{end}}
     </nav>
