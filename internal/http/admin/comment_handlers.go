@@ -17,7 +17,11 @@ import (
 
 func (h *Handlers) Comments(w http.ResponseWriter, r *http.Request) {
 	filter := commentListFilterFromRequest(r)
-	comments, _ := h.comments.AdminListFiltered(r.Context(), filter)
+	comments, err := h.comments.AdminListFiltered(r.Context(), filter)
+	if err != nil {
+		http.Error(w, "failed to load comments", http.StatusInternalServerError)
+		return
+	}
 	h.render(w, r, "admin/comments_queue.html", map[string]any{
 		"Comments": comments,
 		"Status":   filter.Status,
@@ -28,7 +32,11 @@ func (h *Handlers) Comments(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ExportComments(w http.ResponseWriter, r *http.Request) {
 	filter := commentListFilterFromRequest(r)
 	filter.Limit = 5000
-	comments, _ := h.comments.AdminListFiltered(r.Context(), filter)
+	comments, err := h.comments.AdminListFiltered(r.Context(), filter)
+	if err != nil {
+		http.Error(w, "failed to export comments", http.StatusInternalServerError)
+		return
+	}
 	if r.URL.Query().Get("format") == "csv" {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="deadcomments-comments.csv"`)
@@ -50,7 +58,11 @@ func (h *Handlers) ExportComments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) PendingComments(w http.ResponseWriter, r *http.Request) {
-	comments, _ := h.comments.AdminList(r.Context(), string(domain.CommentPending), "", nil, nil, 200)
+	comments, err := h.comments.AdminList(r.Context(), string(domain.CommentPending), "", nil, nil, 200)
+	if err != nil {
+		http.Error(w, "failed to load pending comments", http.StatusInternalServerError)
+		return
+	}
 	h.render(w, r, "admin/comments_queue.html", map[string]any{"Comments": comments, "Status": domain.CommentPending})
 }
 
@@ -60,7 +72,11 @@ func (h *Handlers) CommentDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	events, _ := h.moderation.EventsForComment(r.Context(), comment.ID)
+	events, err := h.moderation.EventsForComment(r.Context(), comment.ID)
+	if err != nil {
+		http.Error(w, "failed to load moderation history", http.StatusInternalServerError)
+		return
+	}
 	h.render(w, r, "admin/comment_detail.html", map[string]any{"Comment": comment, "Events": events})
 }
 
@@ -86,14 +102,19 @@ func (h *Handlers) BulkComments(w http.ResponseWriter, r *http.Request) {
 		redirectAdmin(w, r, "/admin/comments")
 		return
 	}
+	total := 0
+	failed := 0
 	for _, id := range r.Form["comment_id"] {
 		id = strings.TrimSpace(id)
 		if id == "" {
 			continue
 		}
-		_ = h.comments.SetStatus(r.Context(), id, status)
+		total++
+		if err := h.comments.SetStatus(r.Context(), id, status); err != nil {
+			failed++
+		}
 	}
-	redirectAdminFlash(w, r, "/admin/comments", moderationFlash(status))
+	redirectAdminFlash(w, r, "/admin/comments", bulkModerationFlash(status, total, failed))
 }
 
 func commentListFilterFromRequest(r *http.Request) repository.CommentListFilter {
@@ -120,7 +141,10 @@ func commentListFilterFromRequest(r *http.Request) repository.CommentListFilter 
 
 func (h *Handlers) EditComment(w http.ResponseWriter, r *http.Request) {
 	id := chiID(r)
-	_ = h.comments.Edit(r.Context(), id, r.FormValue("body_markdown"))
+	if err := h.comments.Edit(r.Context(), id, r.FormValue("body_markdown")); err != nil {
+		http.Error(w, "failed to edit comment", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/admin/comments/"+id, http.StatusFound)
 }
 
@@ -130,13 +154,19 @@ func (h *Handlers) BanIP(w http.ResponseWriter, r *http.Request) {
 	if admin != nil {
 		adminID = &admin.ID
 	}
-	_ = h.comments.BanIPAndSpam(r.Context(), chiID(r), adminID, r.FormValue("reason"))
+	if err := h.comments.BanIPAndSpam(r.Context(), chiID(r), adminID, r.FormValue("reason")); err != nil {
+		http.Error(w, "failed to ban IP", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/admin/comments/"+chiID(r), http.StatusFound)
 }
 
 func (h *Handlers) setCommentStatus(w http.ResponseWriter, r *http.Request, status domain.CommentStatus) {
 	id := chiID(r)
-	_ = h.comments.SetStatus(r.Context(), id, status)
+	if err := h.comments.SetStatus(r.Context(), id, status); err != nil {
+		http.Error(w, "failed to update comment", http.StatusInternalServerError)
+		return
+	}
 	redirectAdminFlash(w, r, "/admin/comments/"+id, moderationFlash(status))
 }
 
@@ -203,4 +233,17 @@ func moderationFlash(status domain.CommentStatus) string {
 	default:
 		return "Comment updated."
 	}
+}
+
+func bulkModerationFlash(status domain.CommentStatus, total int, failed int) string {
+	if total == 0 {
+		return "No comments selected."
+	}
+	if failed == 0 {
+		return moderationFlash(status)
+	}
+	if failed == total {
+		return "No comments could be updated."
+	}
+	return "Some comments could not be updated."
 }
