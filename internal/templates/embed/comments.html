@@ -53,6 +53,7 @@
       if (!parentOrigin || event.origin !== parentOrigin || !event.data) return;
       if (event.data.type === "deadcomments:theme") applyInheritedTheme(event.data.theme);
       if (event.data.type === "deadcomments:commentFocus") highlightComment(event.data.comment_id);
+      if (event.data.type === "deadcomments:commentCreated") refreshExternalComment(event.data.comment);
     });
 
     function postHeight() {
@@ -489,6 +490,20 @@
     function pollComments() {
       if (!wrap || !wrap.dataset.site || !wrap.dataset.page || document.hidden) return;
       loadSortedComments(wrap.dataset.sort || "oldest", {skipWhenReplyOpen: true});
+    }
+    async function refreshExternalComment(comment) {
+      if (!comment || !comment.id) {
+        await loadSortedComments(wrap.dataset.sort || "oldest");
+        return;
+      }
+      if (comment.annotation && wrap.dataset.showAnnotations === "false") return;
+      if (comment.status === "pending") {
+        rememberPendingComment(comment, comment.parent_id);
+        appendSubmittedComment(comment, comment.parent_id, {highlight: false});
+        sendHeight();
+        return;
+      }
+      await loadSortedComments(wrap.dataset.sort || "oldest");
     }
     function highlightComment(id) {
       if (!id) return false;

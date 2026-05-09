@@ -375,6 +375,7 @@
       if (annotation) {
         annotation._localPending = data.status === "pending";
         addAnnotations([annotation]);
+        notifyCommentsWidget(annotation);
         openPanel(groupKey(annotation));
       }
       showDocumentMessage(data.message || (data.status === "pending" ? t("pending") : t("posted")), data.status === "pending" ? "warning" : "success");
@@ -408,6 +409,25 @@
     messageTimer = window.setTimeout(function () {
       node.classList.remove("is-visible");
     }, 3600);
+  }
+
+  function notifyCommentsWidget(annotation) {
+    var comment = annotation && annotation.comment;
+    if (!comment || !comment.id) return;
+    comment.annotation = {
+      id: annotation.id,
+      selected_text: annotation.selected_text,
+      selection_prefix: annotation.selection_prefix || "",
+      selection_suffix: annotation.selection_suffix || "",
+      text_start: annotation.text_start,
+      text_end: annotation.text_end,
+      text_hash: annotation.text_hash || ""
+    };
+    window.postMessage({
+      type: "deadcomments:commentCreated",
+      comment: comment,
+      annotation_id: annotation.id
+    }, window.location.origin);
   }
 
   function loadAnnotations() {

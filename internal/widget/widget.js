@@ -213,7 +213,7 @@
 
   window.addEventListener("message", function (event) {
     if (!event.data) return;
-    if (event.origin === window.location.origin && event.data.type === "deadcomments:commentFocus") {
+    if (event.origin === window.location.origin && (event.data.type === "deadcomments:commentFocus" || event.data.type === "deadcomments:commentCreated")) {
       if (iframe.contentWindow) iframe.contentWindow.postMessage(event.data, src.origin);
       return;
     }
