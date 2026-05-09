@@ -12,7 +12,7 @@
     {{else if eq .Page.State "hidden"}}
       <div class="dc-state">Comments are hidden.</div>
     {{else}}
-      <h2 class="dc-title">Comments</h2>
+      <h2 class="dc-title">Comments {{if gt .Page.ApprovedCount 0}}<span>{{.Page.ApprovedCount}}</span>{{end}}</h2>
       {{if .Comments}}
       <section class="dc-thread">
         {{range .Comments}}{{template "embed_comment" dict "Comment" . "Root" true "CanReply" (eq $.Page.State "open")}}{{end}}
@@ -48,11 +48,10 @@
     }
     function saveProfile(form) {
       var data = new FormData(form);
-      var profile = {
-        author_name: publicName(data.get("author_name")),
-        author_email: String(data.get("author_email") || "").trim(),
-        author_website: String(data.get("author_website") || "").trim()
-      };
+      var profile = readProfile();
+      if (data.has("author_name")) profile.author_name = publicName(data.get("author_name"));
+      if (data.has("author_email")) profile.author_email = String(data.get("author_email") || "").trim();
+      if (data.has("author_website")) profile.author_website = String(data.get("author_website") || "").trim();
       try {
         localStorage.setItem(profileKey, JSON.stringify(profile));
       } catch (_) {}
@@ -165,18 +164,21 @@
         author.appendChild(badge);
       }
       header.appendChild(author);
+      var meta = document.createElement("span");
+      meta.className = "dc-meta";
       var time = document.createElement("time");
       time.className = "dc-time";
       time.dateTime = comment.created_at || "";
       time.title = fullTime(comment.created_at);
       time.appendChild(text(formatTime(comment.created_at)));
-      header.appendChild(time);
+      meta.appendChild(time);
       if (comment.replying_to_author) {
         var replying = document.createElement("span");
         replying.className = "dc-replying";
         replying.appendChild(text("replying to @" + comment.replying_to_author));
-        header.appendChild(replying);
+        meta.appendChild(replying);
       }
+      header.appendChild(meta);
       box.appendChild(header);
 
       var body = document.createElement("div");
@@ -187,7 +189,7 @@
       var actions = document.createElement("div");
       actions.className = "dc-actions";
       var reply = document.createElement("button");
-      reply.className = "dc-btn";
+      reply.className = "dc-action-btn";
       reply.type = "button";
       reply.dataset.replyTo = comment.id;
       reply.appendChild(text("Reply"));
@@ -228,11 +230,21 @@
       var old = form.parentElement.querySelector(".dc-form-message");
       if (old) old.remove();
       var msg = document.createElement("div");
-      msg.className = "dc-form-message " + (ok ? "dc-message" : "dc-error");
+      msg.className = "dc-form-message " + (ok ? "dc-message success" : "dc-error");
       msg.appendChild(text(message));
       form.before(msg);
       sendHeight();
       if (ok) window.setTimeout(function () { msg.remove(); sendHeight(); }, 3500);
+    }
+    function mainForm() {
+      return document.querySelector(".dc-form:not(.reply)");
+    }
+    function closeReplyForm() {
+      var old = document.querySelector(".dc-form.reply");
+      if (old) old.remove();
+      var base = mainForm();
+      if (base) base.hidden = false;
+      sendHeight();
     }
     function showReplyForm(id) {
       var old = document.querySelector(".dc-form.reply");
@@ -240,6 +252,8 @@
       var tpl = document.getElementById("reply-template");
       var target = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"] .dc-actions');
       if (!tpl || !target) return;
+      var base = mainForm();
+      if (base) base.hidden = true;
       var node = tpl.content.cloneNode(true);
       node.querySelector('[name="parent_id"]').value = id;
       applyProfile(node.querySelector(".dc-form"));
@@ -249,6 +263,8 @@
     document.addEventListener("click", function (event) {
       var btn = event.target.closest("[data-reply-to]");
       if (btn) showReplyForm(btn.getAttribute("data-reply-to"));
+      var cancel = event.target.closest("[data-cancel-reply]");
+      if (cancel) closeReplyForm();
     });
     document.addEventListener("submit", async function (event) {
       var form = event.target.closest(".dc-form");
@@ -274,6 +290,7 @@
       }
       if (data.status === "approved") appendSubmittedComment(data.comment, payload.parent_id);
       showFormMessage(form, true, data.message || "Comment submitted.");
+      if (form.classList.contains("reply")) closeReplyForm();
       sendHeight();
     });
     document.querySelectorAll(".dc-time[data-time]").forEach(function (node) {
@@ -304,11 +321,13 @@
         {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
         {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
       </span>
-      <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
-      {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
+      <span class="dc-meta">
+        <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
+        {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
+      </span>
     </header>
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
-    {{if .CanReply}}<div class="dc-actions"><button class="dc-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button></div>{{end}}
+    {{if .CanReply}}<div class="dc-actions"><button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button></div>{{end}}
   </div>
 </article>
 {{range .Comment.Children}}{{template "embed_comment" dict "Comment" . "Root" false "CanReply" $.CanReply}}{{end}}
@@ -316,14 +335,29 @@
 
 {{define "embed_form"}}
 <form class="dc-form {{if .Reply}}reply{{end}}">
+  <div class="dc-form-panel">
   <input type="hidden" name="parent_id" value="{{.ParentID}}">
   <label class="dc-hp">Leave this empty<input name="honeypot" autocomplete="off"></label>
   <div class="dc-row">
-    <label class="dc-field"><span>Name</span><input class="dc-input" name="author_name" required maxlength="160"><small>Optional: use Name##secret for a stable tripcode.</small></label>
-    <label class="dc-field"><span>Email (optional, not shown)</span><input class="dc-input" name="author_email" type="email"></label>
+    <label class="dc-field">
+      <span>Name</span>
+      <input class="dc-input" name="author_name" required maxlength="160">
+      <small>Use Name##secret for a tripcode</small>
+    </label>
+    <label class="dc-field">
+      <span>Email (optional, not shown)</span>
+      <input class="dc-input" name="author_email" type="email">
+      <small>Used only for avatar</small>
+    </label>
   </div>
+  {{if not .Reply}}
   <label class="dc-field"><span>Website (optional)</span><input class="dc-input" name="author_website" type="url"></label>
+  {{end}}
   <label class="dc-field"><span>Comment</span><textarea class="dc-textarea" name="body_markdown" required></textarea></label>
-  <button class="dc-btn primary">{{if .Reply}}Submit reply{{else}}Submit comment{{end}}</button>
+  <div class="dc-submit-row">
+    <button class="dc-btn primary">{{if .Reply}}Submit reply{{else}}Submit comment{{end}}</button>
+    {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>Cancel</button>{{end}}
+  </div>
+  </div>
 </form>
 {{end}}
