@@ -73,14 +73,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.25.x"
-          cache: true
-
       - name: Run govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: |
+          docker run --rm \
+            -v "$PWD":/src \
+            -w /src \
+            golang:1.25-alpine \
+            sh -c 'go run golang.org/x/vuln/cmd/govulncheck@latest ./...'
 
   docusaurus:
     name: Docusaurus Test Stand Build
