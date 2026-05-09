@@ -54,7 +54,9 @@ document.addEventListener("submit", function (event) {
 function validateOriginList(form) {
   var input = form.querySelector("[data-origin-list]");
   if (!input) return true;
-  var lines = input.value.split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
+  var rawLines = input.value.split(/\n+/);
+  var trimmedLines = rawLines.map(function (line) { return line.trim(); });
+  var lines = trimmedLines.filter(Boolean);
   for (var i = 0; i < lines.length; i += 1) {
     try {
       var url = new URL(lines[i]);
@@ -177,7 +179,7 @@ function openConfirm(form, message, token) {
 
   function formFieldActive(target) {
     if (!target || typeof target.closest !== "function") return false;
-    return target.closest("input, textarea, select, button, a, [contenteditable=true]");
+    return !!target.closest("input, textarea, select, button, a, [contenteditable=true]");
   }
 
   function updateBulkState() {
