@@ -48,6 +48,16 @@ func TestEmbedCSPAllowsOnlyNonceScript(t *testing.T) {
 	}
 }
 
+func TestEmbedCSPAllowsHTTPSMarkdownImages(t *testing.T) {
+	rec := httptest.NewRecorder()
+	setEmbedCSP(rec, "nonce-value")
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "img-src 'self' https: data:") {
+		t.Fatalf("expected HTTPS images to be allowed, got %q", csp)
+	}
+}
+
 func TestOriginFromRequestUsesTrustedHeaders(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/embed/comments", nil)
 	req.Header.Set("Origin", "https://blog.example")

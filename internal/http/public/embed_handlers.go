@@ -100,7 +100,7 @@ func (h *Handlers) renderEmbedError(w http.ResponseWriter, locale string, msg st
 }
 
 func setEmbedCSP(w http.ResponseWriter, nonce string) {
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+nonce+"'; connect-src 'self'; style-src 'self'; img-src 'self' https://www.gravatar.com https://secure.gravatar.com data:; base-uri 'none'; form-action 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+nonce+"'; connect-src 'self'; style-src 'self'; img-src 'self' https: data:; base-uri 'none'; form-action 'none'")
 }
 
 func newCSPNonce() string {
