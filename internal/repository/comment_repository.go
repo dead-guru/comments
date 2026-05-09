@@ -41,7 +41,7 @@ func (r *CommentRepository) ByID(ctx context.Context, id string) (*domain.Commen
 }
 
 func (r *CommentRepository) ApprovedByPage(ctx context.Context, pageID int64) ([]*domain.Comment, error) {
-	return r.list(ctx, `WHERE comments.page_id=? AND comments.status='approved' ORDER BY COALESCE(comments.root_id, comments.id), comments.path, comments.created_at`, pageID)
+	return r.list(ctx, `WHERE comments.page_id=? AND comments.status='approved' ORDER BY COALESCE(root_comments.created_at, comments.created_at), comments.created_at, comments.id`, pageID)
 }
 
 func (r *CommentRepository) ByPage(ctx context.Context, pageID int64) ([]*domain.Comment, error) {
@@ -201,7 +201,8 @@ const commentSelectSQL = `
 		comments.updated_at,
 		comments.edited_at
 	FROM comments
-	LEFT JOIN identities ON identities.id = comments.identity_id`
+	LEFT JOIN identities ON identities.id = comments.identity_id
+	LEFT JOIN comments root_comments ON root_comments.id = COALESCE(comments.root_id, comments.id)`
 
 func CommentPath(parent *domain.Comment, id string) string {
 	if parent == nil || parent.Path == "" {

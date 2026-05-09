@@ -221,7 +221,15 @@
       }
       var parent = document.querySelector('[data-comment-id="' + CSS.escape(parentID) + '"]');
       if (parent) {
-        parent.after(node);
+        var root = parent;
+        while (root.classList.contains("is-reply") && root.previousElementSibling) {
+          root = root.previousElementSibling;
+        }
+        var insertionPoint = root;
+        while (insertionPoint.nextElementSibling && insertionPoint.nextElementSibling.classList.contains("is-reply")) {
+          insertionPoint = insertionPoint.nextElementSibling;
+        }
+        insertionPoint.after(node);
       } else {
         thread.appendChild(node);
       }
