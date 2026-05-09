@@ -128,6 +128,13 @@
     function authorName(comment) {
       return comment.author_display_name || comment.author_name || "Anonymous";
     }
+    function commentAuthorFromNode(node) {
+      var author = node ? node.querySelector(".dc-author") : null;
+      if (!author) return "";
+      var clone = author.cloneNode(true);
+      clone.querySelectorAll(".dc-tripcode, .dc-badge").forEach(function (meta) { meta.remove(); });
+      return clone.textContent.trim();
+    }
     function avatarInitial(comment) {
       return authorName(comment).trim().charAt(0).toUpperCase() || "?";
     }
@@ -335,8 +342,8 @@
     function appendSubmittedComment(comment, parentID) {
       if (!comment || !comment.id) return;
       var thread = ensureThread();
-      var node = renderComment(comment, !parentID);
       if (!parentID) {
+        var node = renderComment(comment, true);
         if (wrap.dataset.sort === "newest" && thread.firstChild) {
           thread.insertBefore(node, thread.firstChild);
         } else {
@@ -344,6 +351,9 @@
         }
       } else {
         var parent = document.querySelector('[data-comment-id="' + CSS.escape(parentID) + '"]');
+        comment.parent_id = comment.parent_id || parentID;
+        comment.replying_to_author = comment.replying_to_author || commentAuthorFromNode(parent);
+        var node = renderComment(comment, false);
         if (parent) {
           var root = parent;
           while (root.classList.contains("is-reply") && root.previousElementSibling) {
