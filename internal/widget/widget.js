@@ -37,6 +37,9 @@
 
   function safeCSSValue(value) {
     value = String(value || "").trim();
+    // Defensive sanitization for untrusted CSS values:
+    // - 160 chars is enough for normal colors/font stacks while rejecting abnormal payloads.
+    // - < > { } ; could break out of a single CSS value into markup, blocks, or declarations.
     if (!value || value.length > 160 || /[<>{};]/.test(value)) return "";
     return value;
   }
@@ -65,12 +68,15 @@
     if (!isTransparent(bodyBg)) return bodyBg;
     return "#ffffff";
   }
+  function linearizeSRGBChannel(channel) {
+    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  }
   function isDarkColor(value) {
     var rgb = parseRGB(value);
     if (!rgb) return false;
-    var r = rgb.r / 255;
-    var g = rgb.g / 255;
-    var b = rgb.b / 255;
+    var r = linearizeSRGBChannel(rgb.r / 255);
+    var g = linearizeSRGBChannel(rgb.g / 255);
+    var b = linearizeSRGBChannel(rgb.b / 255);
     var luminance = SRGB_LUMINANCE_R_COEFFICIENT * r + SRGB_LUMINANCE_G_COEFFICIENT * g + SRGB_LUMINANCE_B_COEFFICIENT * b;
     return luminance < 0.5;
   }
@@ -158,10 +164,11 @@
     if (theme !== "inherit" || !iframe.contentWindow) return;
     iframe.contentWindow.postMessage({type: "deadcomments:theme", theme: inheritedTheme()}, src.origin);
   }
+  var themeTimer = null;
   iframe.addEventListener("load", sendInheritedTheme);
   window.addEventListener("resize", function () {
-    window.clearTimeout(iframe._dcThemeTimer);
-    iframe._dcThemeTimer = window.setTimeout(sendInheritedTheme, 100);
+    window.clearTimeout(themeTimer);
+    themeTimer = window.setTimeout(sendInheritedTheme, 100);
   });
 
   window.addEventListener("message", function (event) {
