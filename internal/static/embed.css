@@ -74,6 +74,11 @@ body {
   background: var(--dc-card);
 }
 .dc-author { font-weight: 650; }
+.dc-author-link {
+  color: inherit;
+  text-decoration: none;
+}
+.dc-author-link:hover { color: var(--dc-accent); text-decoration: underline; }
 .dc-tripcode { color: var(--dc-muted); font-weight: 600; margin-left: 4px; }
 .dc-badge {
   display: inline-flex;

@@ -31,8 +31,42 @@
   </main>
   <script>
   (function () {
+    var profileKey = "deadcomments:author:v1";
+
     function sendHeight() {
       parent.postMessage({type: "deadcomments:height", height: document.documentElement.scrollHeight}, "*");
+    }
+    function readProfile() {
+      try {
+        return JSON.parse(localStorage.getItem(profileKey) || "{}") || {};
+      } catch (_) {
+        return {};
+      }
+    }
+    function publicName(name) {
+      return String(name || "").split("##", 1)[0].trim();
+    }
+    function saveProfile(form) {
+      var data = new FormData(form);
+      var profile = {
+        author_name: publicName(data.get("author_name")),
+        author_email: String(data.get("author_email") || "").trim(),
+        author_website: String(data.get("author_website") || "").trim()
+      };
+      try {
+        localStorage.setItem(profileKey, JSON.stringify(profile));
+      } catch (_) {}
+    }
+    function applyProfile(form) {
+      if (!form) return;
+      var profile = readProfile();
+      ["author_name", "author_email", "author_website"].forEach(function (name) {
+        var input = form.querySelector('[name="' + name + '"]');
+        if (input && !input.value && profile[name]) input.value = profile[name];
+      });
+    }
+    function applyProfileToAllForms() {
+      document.querySelectorAll(".dc-form").forEach(applyProfile);
     }
     function showReplyForm(id) {
       var old = document.querySelector(".dc-form.reply");
@@ -42,6 +76,7 @@
       if (!tpl || !target) return;
       var node = tpl.content.cloneNode(true);
       node.querySelector('[name="parent_id"]').value = id;
+      applyProfile(node.querySelector(".dc-form"));
       target.appendChild(node);
       sendHeight();
     }
@@ -55,6 +90,7 @@
       event.preventDefault();
       var wrap = document.querySelector(".dc-wrap");
       var payload = Object.fromEntries(new FormData(form).entries());
+      saveProfile(form);
       payload.parent_id = payload.parent_id || null;
       payload.parent_origin = wrap.dataset.origin || "";
       payload.page_title = wrap.dataset.title || "";
@@ -65,10 +101,15 @@
       msg.className = res.ok ? "dc-message" : "dc-error";
       var data = {};
       try { data = await res.json(); } catch (_) {}
+      if (res.ok && data.status === "approved") {
+        window.location.reload();
+        return;
+      }
       msg.textContent = data.message || data.error || "Unable to submit comment.";
       form.replaceWith(msg);
       sendHeight();
     });
+    applyProfileToAllForms();
     new ResizeObserver(sendHeight).observe(document.body);
     window.addEventListener("load", sendHeight);
     sendHeight();
@@ -82,7 +123,7 @@
 <article class="dc-comment {{if not .Root}}is-reply{{end}}" data-comment-id="{{.Comment.ID}}">
   <header class="dc-head">
     <span class="dc-author">
-      {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}
+      {{if .Comment.AuthorWebsite}}<a class="dc-author-link" href="{{.Comment.AuthorWebsite}}" target="_blank" rel="nofollow ugc noopener noreferrer">{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</a>{{else}}{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}{{end}}
       {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
       {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
     </span>
