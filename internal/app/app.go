@@ -55,13 +55,19 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 			if t.IsZero() {
 				return ""
 			}
-			return t.Format("Jan 2, 2006")
+			return "commented " + t.Format("Jan 2, 2006")
 		},
 		"machineTime": func(t time.Time) string {
 			if t.IsZero() {
 				return ""
 			}
 			return t.UTC().Format(time.RFC3339)
+		},
+		"fullTime": func(t time.Time) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.UTC().Format("Jan 2, 2006, 15:04 UTC")
 		},
 		"avatarInitial": func(values ...string) string {
 			for _, value := range values {

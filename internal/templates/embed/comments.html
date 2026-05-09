@@ -90,7 +90,29 @@
     function formatTime(value) {
       var date = new Date(value || "");
       if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      var seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (seconds < 0) seconds = 0;
+      var units = [
+        ["year", 31536000],
+        ["month", 2592000],
+        ["week", 604800],
+        ["day", 86400],
+        ["hour", 3600],
+        ["minute", 60]
+      ];
+      if (seconds < 45) return "commented just now";
+      for (var i = 0; i < units.length; i += 1) {
+        var value = Math.floor(seconds / units[i][1]);
+        if (value >= 1 && seconds < 2592000) {
+          return "commented " + value + " " + units[i][0] + (value === 1 ? "" : "s") + " ago";
+        }
+      }
+      return "commented " + date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
+    function fullTime(value) {
+      var date = new Date(value || "");
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
     }
     function renderComment(comment, root) {
       var article = document.createElement("article");
@@ -146,7 +168,7 @@
       var time = document.createElement("time");
       time.className = "dc-time";
       time.dateTime = comment.created_at || "";
-      time.title = comment.created_at || "";
+      time.title = fullTime(comment.created_at);
       time.appendChild(text(formatTime(comment.created_at)));
       header.appendChild(time);
       if (comment.replying_to_author) {
@@ -256,6 +278,7 @@
     });
     document.querySelectorAll(".dc-time[data-time]").forEach(function (node) {
       node.textContent = formatTime(node.dataset.time) || node.textContent;
+      node.title = fullTime(node.dataset.time) || node.title;
     });
     applyProfileToAllForms();
     new ResizeObserver(sendHeight).observe(document.body);
@@ -281,7 +304,7 @@
         {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
         {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
       </span>
-      <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{machineTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
+      <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
       {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
     </header>
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
