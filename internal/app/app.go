@@ -17,6 +17,7 @@ import (
 	dcmiddleware "deadcomments/internal/http/middleware"
 	publichttp "deadcomments/internal/http/public"
 	"deadcomments/internal/markdown"
+	"deadcomments/internal/observability"
 	"deadcomments/internal/repository"
 	"deadcomments/internal/service"
 )
@@ -37,6 +38,8 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	moderationRepo := repository.NewModerationRepository(database)
 	eventRepo := repository.NewEventRepository(database)
 	eventBus := dcevent.NewBus(eventRepo)
+	metrics := observability.NewMetrics("deadcomments")
+	eventBus.Subscribe(observability.NewEventMetricsHandler(metrics))
 	eventBus.Subscribe(dcevent.NewAuditHandler(moderationRepo))
 
 	md := service.NewMarkdownService(markdown.NewRenderer())
@@ -120,14 +123,14 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(dcmiddleware.RequestID)
 	r.Use(dcmiddleware.SecurityHeaders)
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		if err := database.PingContext(r.Context()); err != nil {
-			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("ok"))
-	})
+	r.Use(metrics.Middleware)
+
+	health := observability.NewHealthHandler(database, metrics)
+	r.Get("/livez", health.Livez)
+	r.Get("/readyz", health.Readyz)
+	r.Get("/healthz", health.Readyz)
+	r.Get("/status", health.Status)
+	r.Handle("/metrics", metrics.Handler())
 
 	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, tmpl)
 	publichttp.Routes(r, publicHandlers, dcmiddleware.NewRateLimiter(30, time.Minute))

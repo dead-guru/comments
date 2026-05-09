@@ -75,23 +75,79 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, err.Error(), statusForCreateError(err))
 		return
 	}
-	writeJSON(w, map[string]any{
+	status := statusForCreatedComment(comment.Status)
+	message := createMessage(comment.Status, reason)
+	response := map[string]any{
 		"id":      comment.ID,
 		"status":  comment.Status,
-		"message": createMessage(comment.Status),
+		"message": message,
 		"reason":  reason,
 		"comment": toPublicComment(comment),
-	}, http.StatusCreated)
+	}
+	if status >= http.StatusBadRequest {
+		response["error"] = message
+	}
+	writeJSON(w, response, status)
 }
 
-func createMessage(status domain.CommentStatus) string {
+func createMessage(status domain.CommentStatus, reason string) string {
 	if status == domain.CommentApproved {
-		return "Comment submitted."
+		return "Comment posted."
 	}
 	if status == domain.CommentPending {
+		if reason == "word ban" {
+			return "Comment submitted and waiting for moderation because it matched a moderation rule."
+		}
 		return "Comment submitted and waiting for moderation."
 	}
-	return "Comment submitted."
+	if status == domain.CommentRejected {
+		return rejectedMessage(reason)
+	}
+	if status == domain.CommentSpam {
+		return spamMessage(reason)
+	}
+	return "Comment was not posted."
+}
+
+func rejectedMessage(reason string) string {
+	switch reason {
+	case "ip banned":
+		return "Comment rejected: this network is blocked for this site."
+	case "rate limit":
+		return "Comment rejected: too many comments were submitted recently. Please try again later."
+	case "word ban":
+		return "Comment rejected by this site's moderation rules."
+	default:
+		return "Comment rejected by moderation."
+	}
+}
+
+func spamMessage(reason string) string {
+	switch reason {
+	case "honeypot":
+		return "Comment rejected by spam protection."
+	case "duplicate body":
+		return "Comment rejected by spam protection: duplicate comment."
+	case "too many links":
+		return "Comment rejected by spam protection: too many links."
+	case "word ban":
+		return "Comment rejected by this site's moderation rules."
+	default:
+		return "Comment rejected by spam protection."
+	}
+}
+
+func statusForCreatedComment(status domain.CommentStatus) int {
+	switch status {
+	case domain.CommentApproved:
+		return http.StatusCreated
+	case domain.CommentPending:
+		return http.StatusAccepted
+	case domain.CommentRejected, domain.CommentSpam:
+		return http.StatusForbidden
+	default:
+		return http.StatusAccepted
+	}
 }
 
 func statusForCreateError(err error) int {

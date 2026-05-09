@@ -212,6 +212,52 @@ Identity create/update/delete and identity secret reset also publish events.
 
 Comment moderation history is now an event subscriber: the audit handler listens to comment events and writes `moderation_events`. That keeps audit behavior out of handlers and away from core comment mutation code.
 
+## Observability
+
+Kubernetes-friendly status endpoints:
+
+- `GET /livez`: process liveness, no database dependency
+- `GET /readyz`: readiness check with SQLite ping, returns `503` if the database is unavailable
+- `GET /healthz`: readiness-compatible alias for simple load balancers
+- `GET /status`: JSON status payload with checks and server time
+
+Prometheus metrics are exposed at:
+
+```text
+GET /metrics
+```
+
+The backend exports Go runtime/process metrics plus application metrics:
+
+- `deadcomments_http_requests_total`
+- `deadcomments_http_request_duration_seconds`
+- `deadcomments_http_response_size_bytes`
+- `deadcomments_http_requests_in_flight`
+- `deadcomments_readiness_checks_total`
+- `deadcomments_domain_events_total`
+- `deadcomments_comments_created_total`
+- `deadcomments_comment_moderation_actions_total`
+- `deadcomments_page_events_total`
+- `deadcomments_site_events_total`
+- `deadcomments_ban_events_total`
+- `deadcomments_identity_events_total`
+- `deadcomments_admin_logins_total`
+
+Business metrics are recorded by an event-bus subscriber, not directly from HTTP handlers or core mutation logic. Keep metric labels low-cardinality: status, action, route pattern, result, and bounded enum-like values are OK; site keys, page keys, comment IDs, IP hashes, user names, and free-form text are not OK as labels.
+
+Example Kubernetes probes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: http
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+```
+
 ## Production Notes
 
 - Run behind HTTPS and set `BASE_URL` to the HTTPS origin.
@@ -221,7 +267,8 @@ Comment moderation history is now an event subscriber: the audit handler listens
 - Put the SQLite database on durable storage.
 - Add process supervision with systemd, Docker, Nomad, Fly, or another single-service runtime.
 - Terminate TLS at a reverse proxy and forward standard headers.
-- Monitor SQLite file size, pending moderation volume, and HTTP 4xx/5xx rates.
+- Expose `/metrics` only to Prometheus or a trusted internal network.
+- Monitor SQLite file size, pending moderation volume, readiness failures, comment moderation outcomes, and HTTP 4xx/5xx rates.
 
 ## Backups
 

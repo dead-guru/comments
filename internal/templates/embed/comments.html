@@ -269,7 +269,7 @@
       try { data = await res.json(); } catch (_) {}
       if (button) button.disabled = false;
       if (!res.ok) {
-        showFormMessage(form, false, data.error || "Unable to submit comment.");
+        showFormMessage(form, false, data.message || data.error || "Unable to submit comment.");
         return;
       }
       if (data.status === "approved") appendSubmittedComment(data.comment, payload.parent_id);

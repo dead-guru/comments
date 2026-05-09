@@ -132,10 +132,10 @@ func (r *CommentRepository) list(ctx context.Context, where string, args ...any)
 
 func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, error) {
 	var c domain.Comment
-	var parent, root, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, edited, badgeType, badgeLabel sql.NullString
+	var parent, root, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, moderationReason, edited, badgeType, badgeLabel sql.NullString
 	var identityID sql.NullInt64
 	var created, updated string
-	if err := scanner.Scan(&c.ID, &c.SiteID, &c.PageID, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &created, &updated, &edited); err != nil {
+	if err := scanner.Scan(&c.ID, &c.SiteID, &c.PageID, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &created, &updated, &edited); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -163,6 +163,7 @@ func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, erro
 	c.IPHash = nullableString(ipHash)
 	c.UserAgentHash = nullableString(uaHash)
 	c.MetadataJSON = nullableString(metadata)
+	c.ModerationReason = nullableString(moderationReason)
 	c.CreatedAt = parseTime(created)
 	c.UpdatedAt = parseTime(updated)
 	c.EditedAt = nullableTime(edited)
@@ -187,6 +188,15 @@ const commentSelectSQL = `
 		comments.ip_hash,
 		comments.user_agent_hash,
 		comments.metadata_json,
+		(
+			SELECT moderation_events.reason
+			FROM moderation_events
+			WHERE moderation_events.comment_id = comments.id
+				AND moderation_events.reason IS NOT NULL
+				AND moderation_events.reason != ''
+			ORDER BY moderation_events.created_at DESC, moderation_events.id DESC
+			LIMIT 1
+		) AS moderation_reason,
 		comments.created_at,
 		comments.updated_at,
 		comments.edited_at

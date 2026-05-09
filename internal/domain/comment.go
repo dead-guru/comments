@@ -36,6 +36,7 @@ type Comment struct {
 	IPHash            *string
 	UserAgentHash     *string
 	MetadataJSON      *string
+	ModerationReason  *string
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	EditedAt          *time.Time

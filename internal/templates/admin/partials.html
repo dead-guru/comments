@@ -22,8 +22,8 @@
 
 {{define "comments_table"}}
 <table>
-  <thead><tr><th>Author</th><th>Status</th><th>Body</th><th>Created</th><th></th></tr></thead>
-  <tbody>{{range .}}<tr><td>{{if .AuthorDisplayName}}{{.AuthorDisplayName}}{{else}}{{.AuthorName}}{{end}}{{if .TripcodePublic}} <span class="muted">◆{{.TripcodePublic}}</span>{{end}}</td><td class="status-{{.Status}}">{{.Status}}</td><td>{{.BodyMarkdown}}</td><td>{{.CreatedAt}}</td><td><a href="/admin/comments/{{.ID}}">Open</a></td></tr>{{else}}<tr><td colspan="5" class="muted">No comments.</td></tr>{{end}}</tbody>
+  <thead><tr><th>Author</th><th>Status</th><th>Reason</th><th>Body</th><th>Created</th><th></th></tr></thead>
+  <tbody>{{range .}}<tr><td>{{if .AuthorDisplayName}}{{.AuthorDisplayName}}{{else}}{{.AuthorName}}{{end}}{{if .TripcodePublic}} <span class="muted">◆{{.TripcodePublic}}</span>{{end}}</td><td class="status-{{.Status}}">{{.Status}}</td><td class="muted">{{if .ModerationReason}}{{.ModerationReason}}{{end}}</td><td>{{.BodyMarkdown}}</td><td>{{.CreatedAt}}</td><td><a href="/admin/comments/{{.ID}}">Open</a></td></tr>{{else}}<tr><td colspan="6" class="muted">No comments.</td></tr>{{end}}</tbody>
 </table>
 {{end}}
 

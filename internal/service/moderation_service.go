@@ -16,6 +16,8 @@ type ModerationService struct {
 	events     event.Publisher
 }
 
+const recentIPCommentLimit = 30
+
 func NewModerationService(moderation *repository.ModerationRepository, comments *repository.CommentRepository, events ...event.Publisher) *ModerationService {
 	return &ModerationService{moderation: moderation, comments: comments, events: optionalPublisher(events)}
 }
@@ -36,7 +38,7 @@ func (s *ModerationService) Decide(ctx context.Context, site *domain.Site, input
 		if err != nil {
 			return domain.ModerationDecision{}, err
 		}
-		if count >= 5 {
+		if count >= recentIPCommentLimit {
 			return domain.ModerationDecision{Status: domain.CommentRejected, Reason: "rate limit"}, nil
 		}
 		dupes, err := s.comments.RecentSameIP(ctx, ipHash, input.BodyMarkdown)

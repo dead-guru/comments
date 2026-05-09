@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -197,6 +198,42 @@ func TestBannedIPRejected(t *testing.T) {
 	}
 	if comment.Status != domain.CommentRejected || reason != "ip banned" {
 		t.Fatalf("expected rejected banned IP, got %s %q", comment.Status, reason)
+	}
+	stored, err := deps.comments.ByID(context.Background(), comment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.ModerationReason == nil || *stored.ModerationReason != "ip banned" {
+		t.Fatalf("expected stored moderation reason ip banned, got %v", stored.ModerationReason)
+	}
+}
+
+func TestRecentIPRateLimitRejectsWithReason(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+
+	for i := 0; i < recentIPCommentLimit; i++ {
+		input := validInput(nil)
+		input.PageKey = "/posts/rate-limit"
+		input.BodyMarkdown = "Unique comment " + strconv.Itoa(i)
+		comment, reason, err := deps.commentSvc.Create(context.Background(), input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if comment.Status != domain.CommentApproved || reason != "auto moderation" {
+			t.Fatalf("expected approved before limit, got %s %q at %d", comment.Status, reason, i)
+		}
+	}
+
+	limited := validInput(nil)
+	limited.PageKey = "/posts/rate-limit"
+	limited.BodyMarkdown = "One comment too many"
+	comment, reason, err := deps.commentSvc.Create(context.Background(), limited)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comment.Status != domain.CommentRejected || reason != "rate limit" {
+		t.Fatalf("expected rejected rate limit, got %s %q", comment.Status, reason)
 	}
 }
 
