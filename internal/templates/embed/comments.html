@@ -561,9 +561,9 @@
       msg.setAttribute("aria-live", "assertive");
       msg.setAttribute("aria-atomic", "true");
       msg.appendChild(text(message));
-      var row = form.querySelector(".dc-submit-row");
-      if (row) {
-        row.appendChild(msg);
+      var slot = form.querySelector("[data-form-message]");
+      if (slot) {
+        slot.appendChild(msg);
       } else {
         form.appendChild(msg);
       }
@@ -765,9 +765,12 @@
     </div>
     <div class="dc-editor-foot"><small class="dc-markdown-note">{{index .T "markdown_supported"}}</small><small data-char-count>0 / {{.MaxLength}}</small></div>
   </div>
-  <div class="dc-submit-row">
-    {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>{{index .T "cancel"}}</button>{{end}}
-    <button class="dc-btn primary" type="submit">{{if .Reply}}{{index .T "submit_reply"}}{{else}}{{index .T "submit_comment"}}{{end}}</button>
+  <div class="dc-form-footer">
+    <div class="dc-form-message-slot" data-form-message></div>
+    <div class="dc-submit-row">
+      {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>{{index .T "cancel"}}</button>{{end}}
+      <button class="dc-btn primary" type="submit">{{if .Reply}}{{index .T "submit_reply"}}{{else}}{{index .T "submit_comment"}}{{end}}</button>
+    </div>
   </div>
   </div>
 </form>

@@ -133,10 +133,9 @@ body {
   background: var(--dc-card);
 }
 .dc-form-message {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   min-height: 28px;
-  margin-left: 4px;
   padding: 4px 0;
   color: var(--dc-muted);
   font-size: 12px;
@@ -532,6 +531,15 @@ body {
 }
 .dc-editor-foot small.is-near-limit { color: var(--dc-warning); }
 .dc-editor-foot small.is-at-limit { color: var(--dc-danger); }
+.dc-form-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+.dc-form-message-slot {
+  min-width: 0;
+}
 .dc-submit-row {
   display: flex;
   gap: 8px;
@@ -585,6 +593,10 @@ body {
   .dc-row { grid-template-columns: 1fr; }
   .dc-head { flex-wrap: wrap; }
   .dc-btn.primary { width: 100%; }
+  .dc-form-footer {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
   .dc-submit-row {
     align-items: stretch;
     flex-direction: column-reverse;
