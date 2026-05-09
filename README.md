@@ -62,6 +62,7 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
 | `PORT` | `8080` | HTTP port |
 | `SESSION_TTL_HOURS` | `720` | Admin session lifetime |
 | `BEHIND_TRUSTED_PROXY` | `false` | Trust `X-Forwarded-For`/`X-Real-IP`; enable only behind a proxy that strips untrusted forwarded headers |
+| `METRICS_TOKEN` | empty | Optional bearer token required for `GET /metrics` |
 | `DEADCOMMENTS_DEV_SEED` | empty | Set to `1` to create the local demo site |
 
 ## Embed
@@ -236,6 +237,12 @@ Prometheus metrics are exposed at:
 
 ```text
 GET /metrics
+```
+
+If `METRICS_TOKEN` is set, Prometheus must send:
+
+```text
+Authorization: Bearer <METRICS_TOKEN>
 ```
 
 The backend exports Go runtime/process metrics plus application metrics:

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"html/template"
@@ -154,7 +155,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	r.Get("/readyz", health.Readyz)
 	r.Get("/healthz", health.Readyz)
 	r.Get("/status", health.Status)
-	r.Handle("/metrics", metrics.Handler())
+	r.Handle("/metrics", metricsHandler(metrics.Handler(), cfg.MetricsToken))
 
 	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, md, tmpl, cfg.ServerSecret)
 	publichttp.Routes(r, publicHandlers, dcmiddleware.NewRateLimiter(120, time.Minute))
@@ -163,4 +164,25 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	adminhttp.Routes(r, adminHandlers, authSvc, csrf)
 
 	return &App{Config: cfg, DB: database, Router: r}, nil
+}
+
+func metricsHandler(next http.Handler, token string) http.Handler {
+	if strings.TrimSpace(token) == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if subtle.ConstantTimeCompare([]byte(bearerToken(r.Header.Get("Authorization"))), []byte(token)) != 1 {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="deadcomments metrics"`)
+			http.Error(w, "metrics authentication required", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func bearerToken(header string) string {
+	if !strings.HasPrefix(header, "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 }

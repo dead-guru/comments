@@ -9,15 +9,16 @@ import (
 )
 
 type RateLimiter struct {
-	mu        sync.Mutex
-	limit     int
-	window    time.Duration
-	lastSweep time.Time
-	clients   map[string][]time.Time
+	mu         sync.Mutex
+	limit      int
+	window     time.Duration
+	maxClients int
+	lastSweep  time.Time
+	clients    map[string][]time.Time
 }
 
 func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
-	return &RateLimiter{limit: limit, window: window, clients: map[string][]time.Time{}}
+	return &RateLimiter{limit: limit, window: window, maxClients: 10000, clients: map[string][]time.Time{}}
 }
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
@@ -32,6 +33,12 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 				kept = append(kept, t)
 			}
 		}
+		if len(kept) == 0 && len(rl.clients) >= rl.maxClients {
+			rl.compactLocked(now)
+			if len(rl.clients) >= rl.maxClients {
+				rl.evictOldestLocked()
+			}
+		}
 		if len(kept) >= rl.limit {
 			retryAfter := rl.retryAfterLocked(now, kept)
 			rl.mu.Unlock()
@@ -43,6 +50,24 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		rl.mu.Unlock()
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (rl *RateLimiter) evictOldestLocked() {
+	var oldestIP string
+	var oldest time.Time
+	for ip, hits := range rl.clients {
+		if len(hits) == 0 {
+			delete(rl.clients, ip)
+			return
+		}
+		if oldestIP == "" || hits[0].Before(oldest) {
+			oldestIP = ip
+			oldest = hits[0]
+		}
+	}
+	if oldestIP != "" {
+		delete(rl.clients, oldestIP)
+	}
 }
 
 func (rl *RateLimiter) retryAfterLocked(now time.Time, kept []time.Time) time.Duration {
@@ -60,6 +85,11 @@ func (rl *RateLimiter) sweepLocked(now time.Time) {
 	if !rl.lastSweep.IsZero() && now.Sub(rl.lastSweep) < rl.window {
 		return
 	}
+	rl.compactLocked(now)
+	rl.lastSweep = now
+}
+
+func (rl *RateLimiter) compactLocked(now time.Time) {
 	for ip, hits := range rl.clients {
 		kept := hits[:0]
 		for _, t := range hits {
@@ -73,7 +103,6 @@ func (rl *RateLimiter) sweepLocked(now time.Time) {
 		}
 		rl.clients[ip] = kept
 	}
-	rl.lastSweep = now
 }
 
 func clientKey(remoteAddr string) string {

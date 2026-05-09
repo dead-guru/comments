@@ -67,3 +67,29 @@ func TestRateLimiterReturnsRetryAfter(t *testing.T) {
 		}
 	}
 }
+
+func TestRateLimiterBoundsClientBuckets(t *testing.T) {
+	rl := NewRateLimiter(10, time.Hour)
+	rl.maxClients = 2
+	rl.clients["198.51.100.1"] = []time.Time{time.Now().Add(-2 * time.Minute)}
+	rl.clients["198.51.100.2"] = []time.Time{time.Now().Add(-time.Minute)}
+
+	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/comments", nil)
+	req.RemoteAddr = "198.51.100.3:12345"
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	if len(rl.clients) > rl.maxClients {
+		t.Fatalf("expected at most %d clients, got %d", rl.maxClients, len(rl.clients))
+	}
+	if _, ok := rl.clients["198.51.100.1"]; ok {
+		t.Fatal("expected oldest client bucket to be evicted")
+	}
+	if _, ok := rl.clients["198.51.100.3"]; !ok {
+		t.Fatal("expected new client bucket to be recorded")
+	}
+}

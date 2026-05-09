@@ -24,6 +24,7 @@ type Config struct {
 	SecureCookies       bool
 	BehindTrustedProxy  bool
 	DevSeed             bool
+	MetricsToken        string
 }
 
 func LoadConfig() (Config, error) {
@@ -44,6 +45,7 @@ func LoadConfig() (Config, error) {
 		SecureCookies:      strings.HasPrefix(baseURL, "https://"),
 		BehindTrustedProxy: truthy(os.Getenv("BEHIND_TRUSTED_PROXY")),
 		DevSeed:            os.Getenv("DEADCOMMENTS_DEV_SEED") == "1",
+		MetricsToken:       strings.TrimSpace(os.Getenv("METRICS_TOKEN")),
 	}
 	cfg.GitHubAllowedLogins = parseAllowedLogins(os.Getenv("GITHUB_ALLOWED_LOGINS"))
 	if cfg.GitHubClientID != "" && cfg.GitHubClientSecret != "" && len(cfg.GitHubAllowedLogins) == 0 {

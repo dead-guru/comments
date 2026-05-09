@@ -2,12 +2,14 @@ package public
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestEmbedTokenBindsSitePageAndOrigin(t *testing.T) {
 	h := &Handlers{embedSecret: "test-secret"}
-	token := h.signEmbedToken("site", "/post", "https://blog.example/articles/one")
+	token := h.signEmbedToken("site", "/post", "https://blog.example")
 
 	if token == "" {
 		t.Fatal("expected token")
@@ -20,6 +22,29 @@ func TestEmbedTokenBindsSitePageAndOrigin(t *testing.T) {
 	}
 	if h.validEmbedToken("site", "/post", "https://evil.example", token) {
 		t.Fatal("expected token to reject a different origin")
+	}
+}
+
+func TestEmbedTokenNormalizesOriginURL(t *testing.T) {
+	h := &Handlers{embedSecret: "test-secret"}
+	token := h.signEmbedToken("site", "/post", "https://blog.example/articles/one")
+
+	if !h.validEmbedToken("site", "/post", "https://blog.example", token) {
+		t.Fatal("expected token signed with a full URL to validate against its origin")
+	}
+}
+
+func TestEmbedCSPAllowsOnlyNonceScript(t *testing.T) {
+	rec := httptest.NewRecorder()
+	nonce := "nonce-value"
+	setEmbedCSP(rec, nonce)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "script-src 'nonce-"+nonce+"'") {
+		t.Fatalf("expected nonce script-src, got %q", csp)
+	}
+	if strings.Contains(csp, "unsafe-inline") {
+		t.Fatalf("embed CSP must not allow unsafe-inline, got %q", csp)
 	}
 }
 

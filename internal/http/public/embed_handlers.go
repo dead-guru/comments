@@ -1,6 +1,8 @@
 package public
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"html/template"
 	"net/http"
 	"os"
@@ -74,22 +76,39 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		"MaxLength":    site.MaxCommentLength,
 		"PageTitle":    r.URL.Query().Get("title"),
 		"PageURL":      r.URL.Query().Get("url"),
+		"CSPNonce":     newCSPNonce(),
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	setEmbedCSP(w, data["CSPNonce"].(string))
 	if err := h.tmpl.ExecuteTemplate(w, "comments.html", data); err != nil {
 		http.Error(w, "comments unavailable", http.StatusInternalServerError)
 	}
 }
 
 func (h *Handlers) renderEmbedError(w http.ResponseWriter, locale string, msg string) {
+	nonce := newCSPNonce()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	setEmbedCSP(w, nonce)
 	_ = h.tmpl.ExecuteTemplate(w, "comments.html", map[string]any{
-		"Error":  msg,
-		"Theme":  domain.ThemeAuto,
-		"Locale": locale,
-		"T":      i18n.Embed(locale),
-		"Sort":   domain.CommentSortOldest,
+		"Error":    msg,
+		"Theme":    domain.ThemeAuto,
+		"Locale":   locale,
+		"T":        i18n.Embed(locale),
+		"Sort":     domain.CommentSortOldest,
+		"CSPNonce": nonce,
 	})
+}
+
+func setEmbedCSP(w http.ResponseWriter, nonce string) {
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+nonce+"'; connect-src 'self'; style-src 'self'; img-src 'self' https://www.gravatar.com https://secure.gravatar.com data:; base-uri 'none'; form-action 'none'")
+}
+
+func newCSPNonce() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return ""
+	}
+	return base64.RawStdEncoding.EncodeToString(raw[:])
 }
 
 func normalizeTheme(raw string) string {

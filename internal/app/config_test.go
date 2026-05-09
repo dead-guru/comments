@@ -1,6 +1,10 @@
 package app
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestLoadConfigRequiresGitHubAllowlistWhenOAuthConfigured(t *testing.T) {
 	t.Setenv("BASE_URL", "http://localhost:8080")
@@ -54,5 +58,40 @@ func TestLoadConfigTrustedProxyFlag(t *testing.T) {
 	}
 	if !cfg.BehindTrustedProxy {
 		t.Fatal("expected trusted proxy flag to be enabled")
+	}
+}
+
+func TestLoadConfigReadsMetricsToken(t *testing.T) {
+	t.Setenv("METRICS_TOKEN", "metrics-secret")
+	t.Setenv("GITHUB_CLIENT_ID", "")
+	t.Setenv("GITHUB_CLIENT_SECRET", "")
+	t.Setenv("GITHUB_ALLOWED_LOGINS", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MetricsToken != "metrics-secret" {
+		t.Fatalf("expected metrics token, got %q", cfg.MetricsToken)
+	}
+}
+
+func TestMetricsHandlerRequiresBearerTokenWhenConfigured(t *testing.T) {
+	handler := metricsHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), "metrics-secret")
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthorized metrics request, got %d", rec.Code)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req.Header.Set("Authorization", "Bearer metrics-secret")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected authorized metrics request, got %d", rec.Code)
 	}
 }
