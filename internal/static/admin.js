@@ -168,10 +168,10 @@ function openConfirm(form, message, token) {
   function submitRowAction(action) {
     var row = currentRow || rows()[0];
     if (!row) return;
-    var form = row.querySelector('form button[data-action="' + action + '"]');
-    if (form) {
+    var actionButton = row.querySelector('form button[data-action="' + action + '"]');
+    if (actionButton) {
       rememberScrollPosition();
-      form.closest("form").requestSubmit();
+      actionButton.closest("form").requestSubmit();
     }
   }
 
@@ -185,7 +185,7 @@ function openConfirm(form, message, token) {
     var checked = table.querySelectorAll("[data-bulk-checkbox]:checked").length;
     var count = document.querySelector("[data-bulk-count]");
     var submit = document.querySelector("[data-bulk-submit]");
-    if (count) count.textContent = checked + (checked === 1 ? " selected" : " selected");
+    if (count) count.textContent = checked + (checked === 1 ? " item selected" : " items selected");
     if (submit) submit.disabled = checked === 0;
   }
 
