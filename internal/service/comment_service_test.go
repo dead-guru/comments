@@ -92,6 +92,16 @@ func TestOriginValidation(t *testing.T) {
 	}
 }
 
+func TestOriginValidationAllowsAllWhenNoOriginsConfigured(t *testing.T) {
+	deps := newTestDeps(t)
+	site := createSite(t, deps, domain.ModerationAuto)
+	site.AllowedOrigins = nil
+
+	if !deps.siteSvc.OriginAllowed(site, "https://anywhere.example/posts/one") {
+		t.Fatal("expected empty origin allowlist to allow any origin")
+	}
+}
+
 func TestCommentCreationAutoCreatesPage(t *testing.T) {
 	deps := newTestDeps(t)
 	createSite(t, deps, domain.ModerationAuto)

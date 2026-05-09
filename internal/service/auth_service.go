@@ -15,14 +15,20 @@ import (
 type AuthService struct {
 	admins        *repository.AdminRepository
 	sessions      *repository.SessionRepository
-	github        *dcauth.GitHubOAuth
+	github        githubOAuthClient
 	allowed       map[string]struct{}
 	sessionSecret string
 	sessionTTL    time.Duration
 	events        event.Publisher
 }
 
-func NewAuthService(admins *repository.AdminRepository, sessions *repository.SessionRepository, github *dcauth.GitHubOAuth, allowed map[string]struct{}, sessionSecret string, sessionTTL time.Duration, events ...event.Publisher) *AuthService {
+type githubOAuthClient interface {
+	Configured() bool
+	AuthCodeURL(state string) string
+	ExchangeUser(ctx context.Context, code string) (*dcauth.GitHubUser, error)
+}
+
+func NewAuthService(admins *repository.AdminRepository, sessions *repository.SessionRepository, github githubOAuthClient, allowed map[string]struct{}, sessionSecret string, sessionTTL time.Duration, events ...event.Publisher) *AuthService {
 	return &AuthService{admins: admins, sessions: sessions, github: github, allowed: allowed, sessionSecret: sessionSecret, sessionTTL: sessionTTL, events: optionalPublisher(events)}
 }
 
