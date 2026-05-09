@@ -2,6 +2,7 @@ module.exports = {
   tutorialSidebar: [
     "intro",
     "threading",
-    "moderation"
+    "moderation",
+    "annotations"
   ]
 };

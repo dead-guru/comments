@@ -16,16 +16,18 @@ import (
 )
 
 type testDeps struct {
-	db         *sql.DB
-	sites      *repository.SiteRepository
-	pages      *repository.PageRepository
-	comments   *repository.CommentRepository
-	identities *repository.IdentityRepository
-	moderation *repository.ModerationRepository
-	events     *repository.EventRepository
-	commentSvc *CommentService
-	siteSvc    *SiteService
-	modSvc     *ModerationService
+	db            *sql.DB
+	sites         *repository.SiteRepository
+	pages         *repository.PageRepository
+	comments      *repository.CommentRepository
+	annotations   *repository.AnnotationRepository
+	identities    *repository.IdentityRepository
+	moderation    *repository.ModerationRepository
+	events        *repository.EventRepository
+	commentSvc    *CommentService
+	annotationSvc *AnnotationService
+	siteSvc       *SiteService
+	modSvc        *ModerationService
 }
 
 func newTestDeps(t *testing.T) testDeps {
@@ -41,6 +43,7 @@ func newTestDeps(t *testing.T) testDeps {
 	sites := repository.NewSiteRepository(database)
 	pages := repository.NewPageRepository(database)
 	comments := repository.NewCommentRepository(database)
+	annotations := repository.NewAnnotationRepository(database)
 	identities := repository.NewIdentityRepository(database)
 	moderation := repository.NewModerationRepository(database)
 	events := repository.NewEventRepository(database)
@@ -49,17 +52,20 @@ func newTestDeps(t *testing.T) testDeps {
 	md := NewMarkdownService(dcmarkdown.NewRenderer())
 	identitySvc := NewIdentityService(identities, "tripcode-secret", bus)
 	modSvc := NewModerationService(moderation, comments, bus)
+	commentSvc := NewCommentService(sites, pages, comments, identitySvc, modSvc, md, "secret", bus)
 	return testDeps{
-		db:         database,
-		sites:      sites,
-		pages:      pages,
-		comments:   comments,
-		identities: identities,
-		moderation: moderation,
-		events:     events,
-		commentSvc: NewCommentService(sites, pages, comments, identitySvc, modSvc, md, "secret", bus),
-		siteSvc:    NewSiteService(sites, bus),
-		modSvc:     modSvc,
+		db:            database,
+		sites:         sites,
+		pages:         pages,
+		comments:      comments,
+		annotations:   annotations,
+		identities:    identities,
+		moderation:    moderation,
+		events:        events,
+		commentSvc:    commentSvc,
+		annotationSvc: NewAnnotationService(sites, annotations, commentSvc, bus),
+		siteSvc:       NewSiteService(sites, bus),
+		modSvc:        modSvc,
 	}
 }
 
@@ -128,6 +134,79 @@ func TestCommentCreationAutoCreatesPage(t *testing.T) {
 	}
 	if page.ApprovedCount != 1 || page.CommentsCount != 1 {
 		t.Fatalf("expected counters updated, got approved=%d total=%d", page.ApprovedCount, page.CommentsCount)
+	}
+}
+
+func TestAnnotationCreationUsesCommentPipeline(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+	start := int64(11)
+	end := int64(24)
+
+	result, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: domain.CommentCreateInput{
+			SiteKey:      "test-site",
+			PageKey:      "/posts/inline",
+			PageTitle:    "Inline",
+			PageURL:      "https://blog.example/posts/inline",
+			AuthorName:   "Oleksii##stable-secret",
+			BodyMarkdown: "**Inline** note",
+			Origin:       "https://blog.example",
+			IP:           "203.0.113.1",
+			UserAgent:    "test",
+		},
+		Selector:        "#article",
+		SelectedText:    "selected text",
+		SelectionPrefix: "before",
+		SelectionSuffix: "after",
+		TextStart:       &start,
+		TextEnd:         &end,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Annotation == nil || result.Annotation.Comment == nil {
+		t.Fatal("expected annotation with comment")
+	}
+	if result.Annotation.Comment.Status != domain.CommentApproved {
+		t.Fatalf("expected approved comment, got %s", result.Annotation.Comment.Status)
+	}
+	if result.Annotation.Comment.TripcodeKind != domain.TripcodeAnonymous {
+		t.Fatalf("expected tripcode identity pipeline, got %s", result.Annotation.Comment.TripcodeKind)
+	}
+	if result.Annotation.TextHash == "" {
+		t.Fatal("expected stable selection hash")
+	}
+	page, annotations, err := deps.annotationSvc.PublicByPage(context.Background(), "test-site", "/posts/inline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page == nil || len(annotations) != 1 {
+		t.Fatalf("expected one public annotation, page=%v annotations=%d", page, len(annotations))
+	}
+	if annotations[0].Comment.BodyHTML == "" || !strings.Contains(annotations[0].Comment.BodyHTML, "<strong>Inline</strong>") {
+		t.Fatalf("expected rendered markdown body, got %q", annotations[0].Comment.BodyHTML)
+	}
+}
+
+func TestAnnotationRequiresSelectionAnchor(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+
+	_, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: validInput(nil),
+		SelectedText:       "selected",
+	})
+	if err == nil || !strings.Contains(err.Error(), "selector") {
+		t.Fatalf("expected selector validation error, got %v", err)
+	}
+
+	_, err = deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: validInput(nil),
+		Selector:           "#article",
+	})
+	if err == nil || !strings.Contains(err.Error(), "selected text") {
+		t.Fatalf("expected selected text validation error, got %v", err)
 	}
 }
 

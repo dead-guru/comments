@@ -257,6 +257,78 @@ func TestAPICreateCommentRateLimitMiddlewareChain(t *testing.T) {
 	}
 }
 
+func TestAnnotationAPIRequiresAllowedOrigin(t *testing.T) {
+	h := newPublicHandlerTestDeps(t)
+	router := newPublicCommentsRouter(h, nil)
+	payload := map[string]any{
+		"author_name":   "Oleksii",
+		"body_markdown": "Inline note",
+		"selector":      "#article",
+		"selected_text": "selected text",
+	}
+	req := newJSONAnnotationRequest(t, payload)
+	req.Header.Set("Origin", "https://evil.example")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAnnotationAPICreatesPublicAnnotation(t *testing.T) {
+	h := newPublicHandlerTestDeps(t)
+	router := newPublicCommentsRouter(h, nil)
+	payload := map[string]any{
+		"author_name":      "Oleksii##annotation-secret",
+		"body_markdown":    "**Inline** note",
+		"selector":         "#article",
+		"selected_text":    "selected text",
+		"selection_prefix": "before",
+		"selection_suffix": "after",
+		"text_start":       10,
+		"text_end":         23,
+	}
+	req := newJSONAnnotationRequest(t, payload)
+	req.Header.Set("Origin", "https://allowed.example")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected created, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != "https://allowed.example" {
+		t.Fatalf("expected CORS allow-origin header, got %q", rec.Header().Get("Access-Control-Allow-Origin"))
+	}
+	var created struct {
+		Annotation domain.PublicAnnotation `json:"annotation"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.Annotation.ID == "" || created.Annotation.Comment == nil {
+		t.Fatalf("expected annotation with public comment: %#v", created.Annotation)
+	}
+	if created.Annotation.Comment.TripcodeKind != domain.TripcodeAnonymous {
+		t.Fatalf("expected anonymous tripcode, got %s", created.Annotation.Comment.TripcodeKind)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/sites/test-site/pages/%2Fposts%2Finline/annotations", nil)
+	listReq.Header.Set("Origin", "https://allowed.example")
+	listRec := httptest.NewRecorder()
+	router.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected list ok, got %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	var listed struct {
+		Annotations []domain.PublicAnnotation `json:"annotations"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &listed); err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.Annotations) != 1 || listed.Annotations[0].SelectedText != "selected text" {
+		t.Fatalf("expected one listed annotation, got %#v", listed.Annotations)
+	}
+}
+
 func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 	t.Helper()
 	database, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
@@ -270,6 +342,7 @@ func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 	sites := repository.NewSiteRepository(database)
 	pages := repository.NewPageRepository(database)
 	comments := repository.NewCommentRepository(database)
+	annotations := repository.NewAnnotationRepository(database)
 	identities := repository.NewIdentityRepository(database)
 	moderation := repository.NewModerationRepository(database)
 	events := repository.NewEventRepository(database)
@@ -282,6 +355,7 @@ func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 	moderationSvc := service.NewModerationService(moderation, comments, bus)
 	markdownSvc := service.NewMarkdownService(dcmarkdown.NewRenderer())
 	commentSvc := service.NewCommentService(sites, pages, comments, identitySvc, moderationSvc, markdownSvc, "server-secret", bus)
+	annotationSvc := service.NewAnnotationService(sites, annotations, commentSvc, bus)
 	site := &domain.Site{
 		Key:                   "test-site",
 		Name:                  "Test Site",
@@ -296,19 +370,23 @@ func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 		t.Fatal(err)
 	}
 
-	h := NewHandlers(siteSvc, pageSvc, commentSvc, markdownSvc, template.New("test"), "embed-secret")
+	h := NewHandlers(siteSvc, pageSvc, commentSvc, annotationSvc, markdownSvc, template.New("test"), "embed-secret")
 	return h
 }
 
 func newPublicCommentsRouter(h *Handlers, limiter *middleware.RateLimiter) http.Handler {
 	router := chi.NewRouter()
 	router.Get("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APIListComments)
+	router.Get("/api/v1/sites/{site_key}/pages/{page_key:.*}/annotations", h.APIListAnnotations)
+	router.Options("/api/v1/sites/{site_key}/pages/{page_key:.*}/annotations", h.APIAnnotationsOptions)
 	if limiter == nil {
 		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APICreateComment)
 		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/preview", h.APIPreviewComment)
+		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/annotations", h.APICreateAnnotation)
 		return router
 	}
 	router.With(limiter.Middleware).Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APICreateComment)
+	router.With(limiter.Middleware).Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/annotations", h.APICreateAnnotation)
 	router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/preview", h.APIPreviewComment)
 	return router
 }
@@ -333,6 +411,19 @@ func newJSONPreviewRequest(t *testing.T, payload map[string]any) *http.Request {
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sites/test-site/pages/%2Fposts%2Fone/preview", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://comments.localhost")
+	req.RemoteAddr = "203.0.113.10:12345"
+	return req
+}
+
+func newJSONAnnotationRequest(t *testing.T, payload map[string]any) *http.Request {
+	t.Helper()
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sites/test-site/pages/%2Fposts%2Finline/annotations", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://comments.localhost")
 	req.RemoteAddr = "203.0.113.10:12345"

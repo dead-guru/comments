@@ -20,6 +20,21 @@
       script.setAttribute("data-input-position", node.getAttribute("data-input-position") || "bottom");
       node.after(script);
     });
+    document.querySelectorAll("[data-deadcomments-annotations]").forEach(function (node) {
+      var page = node.getAttribute("data-deadcomments-annotations");
+      var key = page || window.location.pathname;
+      if (document.querySelector('script[data-deadcomments-annotation-loader="' + key + '"]')) return;
+      var script = document.createElement("script");
+      script.src = "http://localhost:8080/annotations.js";
+      script.async = true;
+      script.setAttribute("data-deadcomments-annotation-loader", key);
+      script.setAttribute("data-site", "docs-demo");
+      script.setAttribute("data-page", key);
+      script.setAttribute("data-content-selector", node.getAttribute("data-content-selector") || ".theme-doc-markdown");
+      script.setAttribute("data-theme", node.getAttribute("data-theme") || "auto");
+      script.setAttribute("data-locale", node.getAttribute("data-locale") || "en");
+      document.head.appendChild(script);
+    });
   }
 
   function scheduleLoad() {

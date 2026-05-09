@@ -17,18 +17,24 @@ type Handlers struct {
 	sites       *service.SiteService
 	pages       *service.PageService
 	comments    *service.CommentService
+	annotations *service.AnnotationService
 	markdown    *service.MarkdownService
 	tmpl        *template.Template
 	embedSecret string
 }
 
-func NewHandlers(sites *service.SiteService, pages *service.PageService, comments *service.CommentService, markdown *service.MarkdownService, tmpl *template.Template, embedSecret string) *Handlers {
-	return &Handlers{sites: sites, pages: pages, comments: comments, markdown: markdown, tmpl: tmpl, embedSecret: embedSecret}
+func NewHandlers(sites *service.SiteService, pages *service.PageService, comments *service.CommentService, annotations *service.AnnotationService, markdown *service.MarkdownService, tmpl *template.Template, embedSecret string) *Handlers {
+	return &Handlers{sites: sites, pages: pages, comments: comments, annotations: annotations, markdown: markdown, tmpl: tmpl, embedSecret: embedSecret}
 }
 
 func (h *Handlers) WidgetJS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	http.ServeFile(w, r, "internal/widget/widget.js")
+}
+
+func (h *Handlers) AnnotationsJS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	http.ServeFile(w, r, "internal/widget/annotations.js")
 }
 
 func (h *Handlers) EmbedCSS(w http.ResponseWriter, r *http.Request) {

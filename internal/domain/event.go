@@ -13,6 +13,7 @@ const (
 	EventCommentStatusSet    EventType = "comment.status_set"
 	EventCommentEdited       EventType = "comment.edited"
 	EventCommentIPBanned     EventType = "comment.ip_banned"
+	EventAnnotationCreated   EventType = "annotation.created"
 	EventIPBanCreated        EventType = "ip_ban.created"
 	EventIPBanDeleted        EventType = "ip_ban.deleted"
 	EventWordBanCreated      EventType = "word_ban.created"

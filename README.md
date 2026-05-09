@@ -94,6 +94,32 @@ Use `data-input-position="top"` to render the main comment form above the commen
 
 Use `data-sort="oldest"`, `data-sort="newest"`, or `data-sort="best"` to choose the default public comment order. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
 
+## Inline Annotations
+
+Deadcomments can also run Medium-style comments bound to selected text on the host page. This uses a separate script and a separate `annotations` table, while the message itself is still a normal comment and goes through the same origin checks, page state checks, tripcode identity handling, Markdown rendering, moderation rules, events, and admin workflow.
+
+```html
+<script
+  src="https://comments.example.com/annotations.js"
+  data-site="my-blog"
+  data-page="/posts/my-article"
+  data-content-selector="article"
+  data-theme="auto"
+  data-locale="en">
+</script>
+```
+
+Useful attributes:
+
+- `data-site`: required site key.
+- `data-page`: explicit page key. `auto` falls back to `location.pathname + location.search`.
+- `data-content-selector`: CSS selector for the content area where text selection can create annotations. Default: `article, main`.
+- `data-min-selection-length`: minimum selected characters. Default: `2`.
+- `data-max-selection-length`: maximum selected characters stored as a quote. Default: `2000`.
+- `data-locale`: `en` or `uk`.
+
+Annotations store the selected quote, a root selector, surrounding text context, optional text offsets, and a stable text hash. If the article HTML changes later, the script first tries the stored offsets and then falls back to finding the selected quote inside the configured root. If the quote no longer exists, the annotation remains in storage and the API but is not highlighted on that page render.
+
 ## Docusaurus Test Stand
 
 In one terminal:
@@ -110,7 +136,7 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000/docs/intro`, `threading`, and `moderation`. The example loader injects `http://localhost:8080/widget.js` using site key `docs-demo`.
+Open `http://localhost:3000/docs/intro`, `threading`, `moderation`, and `annotations`. The example loader injects `http://localhost:8080/widget.js` using site key `docs-demo`; the annotations page also injects `http://localhost:8080/annotations.js`.
 
 ### Docker Compose
 

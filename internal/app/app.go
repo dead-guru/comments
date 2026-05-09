@@ -35,6 +35,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	siteRepo := repository.NewSiteRepository(database)
 	pageRepo := repository.NewPageRepository(database)
 	commentRepo := repository.NewCommentRepository(database)
+	annotationRepo := repository.NewAnnotationRepository(database)
 	identityRepo := repository.NewIdentityRepository(database)
 	adminRepo := repository.NewAdminRepository(database)
 	sessionRepo := repository.NewSessionRepository(database)
@@ -51,6 +52,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	siteSvc := service.NewSiteService(siteRepo, eventBus)
 	pageSvc := service.NewPageService(pageRepo, eventBus)
 	commentSvc := service.NewCommentService(siteRepo, pageRepo, commentRepo, identitySvc, moderationSvc, md, cfg.ServerSecret, eventBus)
+	annotationSvc := service.NewAnnotationService(siteRepo, annotationRepo, commentSvc, eventBus)
 	eventSvc := service.NewEventService(eventRepo)
 	oauth := dcauth.NewGitHubOAuth(cfg.GitHubClientID, cfg.GitHubClientSecret, cfg.BaseURL+"/auth/github/callback")
 	authSvc := service.NewAuthService(adminRepo, sessionRepo, oauth, cfg.GitHubAllowedLogins, cfg.SessionSecret, cfg.SessionTTL, eventBus)
@@ -157,7 +159,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	r.Get("/status", health.Status)
 	r.Handle("/metrics", metricsHandler(metrics.Handler(), cfg.MetricsToken))
 
-	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, md, tmpl, cfg.ServerSecret)
+	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, annotationSvc, md, tmpl, cfg.ServerSecret)
 	publichttp.Routes(r, publicHandlers, dcmiddleware.NewRateLimiter(120, time.Minute))
 
 	adminHandlers := adminhttp.NewHandlers(siteSvc, pageSvc, commentSvc, moderationSvc, identitySvc, eventSvc, authSvc, tmpl, csrf, cfg.SecureCookies)
