@@ -1,7 +1,32 @@
+var scrollKey = "deadcomments:admin-scroll:" + window.location.pathname;
+
+function rememberScrollPosition() {
+  try {
+    sessionStorage.setItem(scrollKey, String(window.scrollY || window.pageYOffset || 0));
+  } catch (_) {}
+}
+
+function restoreScrollPosition() {
+  var raw = "";
+  try {
+    raw = sessionStorage.getItem(scrollKey) || "";
+    sessionStorage.removeItem(scrollKey);
+  } catch (_) {}
+  var y = Number(raw);
+  if (Number.isFinite(y) && y > 0) {
+    window.requestAnimationFrame(function () {
+      window.scrollTo({ top: y, behavior: "auto" });
+    });
+  }
+}
+
+restoreScrollPosition();
+
 document.addEventListener("submit", function (event) {
   var form = event.target;
   if (form.dataset.confirmed === "true") {
     delete form.dataset.confirmed;
+    rememberScrollPosition();
     return;
   }
   if (form.matches("[data-confirm]")) {
@@ -14,7 +39,11 @@ document.addEventListener("submit", function (event) {
     if (action && action.value === "delete") {
       event.preventDefault();
       openConfirm(form, "Delete selected comments?", "DELETE");
+      return;
     }
+  }
+  if (form.querySelector('[name="redirect_to"]')) {
+    rememberScrollPosition();
   }
 });
 
@@ -66,8 +95,11 @@ function openConfirm(form, message, token) {
     if (currentRow) currentRow.classList.remove("is-current");
     currentRow = row;
     currentRow.classList.add("is-current");
-    currentRow.focus({ preventScroll: true });
-    currentRow.scrollIntoView({ block: "nearest" });
+    try {
+      currentRow.focus({ preventScroll: true });
+    } catch (_) {
+      currentRow.focus();
+    }
   }
 
   function move(delta) {
@@ -77,13 +109,17 @@ function openConfirm(form, message, token) {
     var next = Math.min(list.length - 1, Math.max(0, index + delta));
     if (index === -1) next = delta > 0 ? 0 : list.length - 1;
     setCurrentRow(list[next]);
+    list[next].scrollIntoView({ block: "nearest" });
   }
 
   function submitRowAction(action) {
     var row = currentRow || rows()[0];
     if (!row) return;
     var form = row.querySelector('form button[data-action="' + action + '"]');
-    if (form) form.closest("form").requestSubmit();
+    if (form) {
+      rememberScrollPosition();
+      form.closest("form").requestSubmit();
+    }
   }
 
   function formFieldActive(target) {
