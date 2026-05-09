@@ -153,6 +153,16 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .comment-preview > :first-child { margin-top: 0; }
 .comment-preview > :last-child { margin-bottom: 0; }
 .comment-preview a { word-break: break-all; }
+.comment-preview img {
+  max-width: 160px;
+  max-height: 90px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--subtle);
+}
 .comment-preview pre,
 .comment-preview blockquote {
   margin: 0;
@@ -179,6 +189,20 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .status-pending { color: var(--warning); }
 .status-spam, .status-rejected, .status-deleted { color: var(--danger); }
 .comment-body { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: var(--panel); }
+.comment-body > :first-child { margin-top: 0; }
+.comment-body > :last-child { margin-bottom: 0; }
+.comment-body img {
+  display: block;
+  max-width: 100%;
+  max-height: min(70vh, 760px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--subtle);
+}
 pre.snippet { white-space: pre-wrap; background: var(--subtle); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
 .confirm-dialog {
   border: 0;
