@@ -16,5 +16,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
-  "devDependencies": {}
+  "overrides": {
+    "serialize-javascript": "7.0.5"
+  }
 }
