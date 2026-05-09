@@ -114,13 +114,17 @@ func TestAPIListCommentsReturnsRequestedSort(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 	var response struct {
-		Sort domain.CommentSort `json:"sort"`
+		Sort          domain.CommentSort `json:"sort"`
+		ApprovedCount int                `json:"approved_count"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
 	if response.Sort != domain.CommentSortNewest {
 		t.Fatalf("expected newest sort, got %q", response.Sort)
+	}
+	if response.ApprovedCount != 0 {
+		t.Fatalf("expected approved count 0, got %d", response.ApprovedCount)
 	}
 }
 

@@ -13,7 +13,7 @@
       <div class="dc-state">{{index .T "comments_hidden"}}</div>
     {{else}}
       <div class="dc-titlebar">
-        <h2 class="dc-title">{{index .T "comments"}} {{if gt .Page.ApprovedCount 0}}<span>{{.Page.ApprovedCount}}</span>{{end}}</h2>
+        <h2 class="dc-title">{{index .T "comments"}} <span data-comment-count {{if le .Page.ApprovedCount 0}}hidden{{end}}>{{.Page.ApprovedCount}}</span></h2>
         <div class="dc-sort" aria-label="{{index .T "sort_comments"}}">
           <button class="dc-sort-btn {{if eq .Sort "oldest"}}is-active{{end}}" type="button" data-sort="oldest">{{index .T "oldest"}}</button>
           <button class="dc-sort-btn {{if eq .Sort "newest"}}is-active{{end}}" type="button" data-sort="newest">{{index .T "newest"}}</button>
@@ -309,6 +309,23 @@
       });
       return fragment;
     }
+    function countVisibleComments(comments) {
+      var total = 0;
+      (comments || []).forEach(function (comment) {
+        total += 1 + countVisibleComments(comment.children || []);
+      });
+      return total;
+    }
+    function visibleCommentCount() {
+      return document.querySelectorAll(".dc-comment:not(.is-pending)").length;
+    }
+    function updateCommentCount(count) {
+      var node = document.querySelector("[data-comment-count]");
+      if (!node) return;
+      count = Number(count || 0);
+      node.textContent = String(count);
+      node.hidden = count <= 0;
+    }
     function replaceComments(comments) {
       var thread = document.querySelector(".dc-thread");
       var empty = document.querySelector(".dc-empty");
@@ -323,6 +340,7 @@
         } else if (!empty.parentElement) {
           document.querySelector(".dc-titlebar").after(empty);
         }
+        updateCommentCount(0);
         return;
       }
       thread = ensureThread();
@@ -330,6 +348,7 @@
       comments.forEach(function (comment) {
         thread.appendChild(renderCommentBranch(comment, true));
       });
+      updateCommentCount(countVisibleComments(comments));
     }
     function collectCommentIDs(comments, ids) {
       ids = ids || {};
@@ -385,6 +404,11 @@
         replaceComments(comments);
         prunePendingComments(comments);
         restorePendingComments();
+        if (typeof data.approved_count === "number") {
+          updateCommentCount(data.approved_count);
+        } else {
+          updateCommentCount(visibleCommentCount());
+        }
         if (data.sort) setActiveSort(data.sort);
       } catch (_) {
         setActiveSort(previous);
@@ -423,6 +447,7 @@
         }
       }
       if (options.highlight !== false) highlightComment(comment.id);
+      updateCommentCount(visibleCommentCount());
     }
     function pollComments() {
       if (!wrap || !wrap.dataset.site || !wrap.dataset.page || document.hidden) return;

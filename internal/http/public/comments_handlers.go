@@ -21,8 +21,9 @@ type apiCommentList struct {
 		Key   string `json:"key"`
 		State string `json:"state"`
 	} `json:"page"`
-	Sort     domain.CommentSort      `json:"sort"`
-	Comments []*domain.PublicComment `json:"comments"`
+	Sort          domain.CommentSort      `json:"sort"`
+	ApprovedCount int                     `json:"approved_count"`
+	Comments      []*domain.PublicComment `json:"comments"`
 }
 
 func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +39,7 @@ func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 	resp.Page.Key = page.PageKey
 	resp.Page.State = string(page.State)
 	resp.Sort = sort
+	resp.ApprovedCount = page.ApprovedCount
 	resp.Comments = toPublicComments(comments)
 	writeJSON(w, resp, http.StatusOK)
 }
