@@ -12,12 +12,18 @@
   <div class="topbar">
     <nav class="nav">
       <a class="brand" href="/admin">deadcomments</a>
-      <a href="/admin/sites" class="{{if navActive .RequestPath "/admin/sites"}}is-active{{end}}" {{if navActive .RequestPath "/admin/sites"}}aria-current="page"{{end}}>Sites</a>
-      <a href="/admin/comments/pending" class="{{if eq .RequestPath "/admin/comments/pending"}}is-active{{end}}" {{if eq .RequestPath "/admin/comments/pending"}}aria-current="page"{{end}}>Pending</a>
-      <a href="/admin/comments" class="{{if and (navActive .RequestPath "/admin/comments") (ne .RequestPath "/admin/comments/pending")}}is-active{{end}}" {{if and (navActive .RequestPath "/admin/comments") (ne .RequestPath "/admin/comments/pending")}}aria-current="page"{{end}}>Comments</a>
-      <a href="/admin/identities" class="{{if navActive .RequestPath "/admin/identities"}}is-active{{end}}" {{if navActive .RequestPath "/admin/identities"}}aria-current="page"{{end}}>Identities</a>
-      <a href="/admin/bans" class="{{if navActive .RequestPath "/admin/bans"}}is-active{{end}}" {{if navActive .RequestPath "/admin/bans"}}aria-current="page"{{end}}>Bans</a>
-      <a href="/admin/events" class="{{if navActive .RequestPath "/admin/events"}}is-active{{end}}" {{if navActive .RequestPath "/admin/events"}}aria-current="page"{{end}}>Events</a>
+      {{$sitesActive := navActive .RequestPath "/admin/sites"}}
+      {{$pendingActive := eq .RequestPath "/admin/comments/pending"}}
+      {{$commentsActive := and (navActive .RequestPath "/admin/comments") (not $pendingActive)}}
+      {{$identitiesActive := navActive .RequestPath "/admin/identities"}}
+      {{$bansActive := navActive .RequestPath "/admin/bans"}}
+      {{$eventsActive := navActive .RequestPath "/admin/events"}}
+      <a href="/admin/sites" class="{{if $sitesActive}}is-active{{end}}" {{if $sitesActive}}aria-current="page"{{end}}>Sites</a>
+      <a href="/admin/comments/pending" class="{{if $pendingActive}}is-active{{end}}" {{if $pendingActive}}aria-current="page"{{end}}>Pending</a>
+      <a href="/admin/comments" class="{{if $commentsActive}}is-active{{end}}" {{if $commentsActive}}aria-current="page"{{end}}>Comments</a>
+      <a href="/admin/identities" class="{{if $identitiesActive}}is-active{{end}}" {{if $identitiesActive}}aria-current="page"{{end}}>Identities</a>
+      <a href="/admin/bans" class="{{if $bansActive}}is-active{{end}}" {{if $bansActive}}aria-current="page"{{end}}>Bans</a>
+      <a href="/admin/events" class="{{if $eventsActive}}is-active{{end}}" {{if $eventsActive}}aria-current="page"{{end}}>Events</a>
       {{if .Admin}}
       <form method="post" action="/admin/logout">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
