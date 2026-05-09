@@ -164,37 +164,30 @@ func redirectAdmin(w http.ResponseWriter, r *http.Request, fallback string) {
 }
 
 func redirectAdminFlash(w http.ResponseWriter, r *http.Request, fallback string, flash string) {
-	target := safeAdminRedirect(r.FormValue("redirect_to"))
-	if target == "" {
-		target = fallback
+	if raw := strings.TrimSpace(r.FormValue("redirect_to")); raw != "" {
+		u, err := url.Parse(raw)
+		if err == nil && !u.IsAbs() && u.Host == "" && (u.Path == "/admin" || strings.HasPrefix(u.Path, "/admin/")) {
+			q := u.Query()
+			if flash != "" {
+				q.Set("flash", flash)
+			}
+			http.Redirect(w, r, (&url.URL{Path: u.Path, RawQuery: q.Encode()}).RequestURI(), http.StatusFound)
+			return
+		}
 	}
-	if flash != "" {
-		target = appendQuery(target, "flash", flash)
-	}
-	http.Redirect(w, r, target, http.StatusFound)
+	http.Redirect(w, r, adminRedirectLocation(fallback, flash), http.StatusFound)
 }
 
-func safeAdminRedirect(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
+func adminRedirectLocation(raw string, flash string) string {
 	u, err := url.Parse(raw)
 	if err != nil || u.IsAbs() || u.Host != "" || (u.Path != "/admin" && !strings.HasPrefix(u.Path, "/admin/")) {
-		return ""
-	}
-	return u.RequestURI()
-}
-
-func appendQuery(raw, key, value string) string {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return raw
+		u = &url.URL{Path: "/admin"}
 	}
 	q := u.Query()
-	q.Set(key, value)
-	u.RawQuery = q.Encode()
-	return u.RequestURI()
+	if flash != "" {
+		q.Set("flash", flash)
+	}
+	return (&url.URL{Path: u.Path, RawQuery: q.Encode()}).RequestURI()
 }
 
 func moderationFlash(status domain.CommentStatus) string {
