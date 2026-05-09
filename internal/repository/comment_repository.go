@@ -111,6 +111,12 @@ func (r *CommentRepository) CountTodayByStatus(ctx context.Context, status domai
 	return n, err
 }
 
+func (r *CommentRepository) CountByIdentity(ctx context.Context, identityID int64) (int, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM comments WHERE identity_id=?`, identityID).Scan(&n)
+	return n, err
+}
+
 func (r *CommentRepository) UpdateStatus(ctx context.Context, id string, status domain.CommentStatus) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE comments SET status=?, updated_at=? WHERE id=?`, status, nowString(), id)
 	return err

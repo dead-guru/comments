@@ -1,12 +1,13 @@
 {{template "admin_head" .}}
 <h1>Pages</h1>
 <form class="panel actions" method="get">
-  <input name="q" placeholder="Search page key, title, URL" value="">
+  <input name="q" placeholder="Search page key, title, URL" value="{{.Filters.Get "q"}}">
   <select name="state">
     <option value="">Any state</option>
-    <option>open</option><option>locked</option><option>hidden</option><option>archived</option>
+    <option value="open" {{if eq (.Filters.Get "state") "open"}}selected{{end}}>open</option><option value="locked" {{if eq (.Filters.Get "state") "locked"}}selected{{end}}>locked</option><option value="hidden" {{if eq (.Filters.Get "state") "hidden"}}selected{{end}}>hidden</option><option value="archived" {{if eq (.Filters.Get "state") "archived"}}selected{{end}}>archived</option>
   </select>
   <button>Filter</button>
+  <a class="button" href="{{.RequestPath}}">Clear</a>
 </form>
 {{template "pages_table" .Pages}}
 {{template "admin_foot" .}}

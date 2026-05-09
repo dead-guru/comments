@@ -61,6 +61,20 @@ func TestCommentsQueueTemplateExecutes(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("execute events.html: %v", err)
 	}
+	if err := tmpl.ExecuteTemplate(io.Discard, "pages_list.html", map[string]any{
+		"CSRFToken":   "csrf",
+		"RequestPath": "/admin/pages",
+		"Filters":     mapValues{},
+		"Pages":       []*domain.Page{{ID: 1, PageKey: "/post", State: domain.PageOpen}},
+	}); err != nil {
+		t.Fatalf("execute pages_list.html: %v", err)
+	}
+	if err := tmpl.ExecuteTemplate(io.Discard, "sites_list.html", map[string]any{
+		"CSRFToken": "csrf",
+		"Sites":     []*domain.Site{},
+	}); err != nil {
+		t.Fatalf("execute sites_list.html: %v", err)
+	}
 }
 
 type mapValues map[string]string

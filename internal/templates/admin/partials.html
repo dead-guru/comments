@@ -3,11 +3,11 @@
   <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
   <div class="field"><label>Name</label><input name="name" value="{{.Site.Name}}" required></div>
   <div class="field"><label>Key</label><input name="key" value="{{.Site.Key}}" required></div>
-  <div class="field"><label>Allowed origins, one per line</label><textarea name="allowed_origins" placeholder="https://example.com">{{join .Site.AllowedOrigins}}</textarea></div>
+  <div class="field"><label>Allowed origins, one per line</label><textarea name="allowed_origins" data-origin-list placeholder="https://example.com">{{join .Site.AllowedOrigins}}</textarea><small class="muted">Use full origins including protocol, for example <code>https://example.com</code>. Do not enter bare domains like <code>example.com</code>.</small></div>
   <div class="field"><label>Moderation</label><select name="default_moderation_mode"><option value="manual" {{if eq .Site.DefaultModerationMode "manual"}}selected{{end}}>manual</option><option value="auto" {{if eq .Site.DefaultModerationMode "auto"}}selected{{end}}>auto</option></select></div>
   <div class="field"><label>Default page state</label><select name="default_page_state"><option value="open" {{if eq .Site.DefaultPageState "open"}}selected{{end}}>open</option><option value="locked" {{if eq .Site.DefaultPageState "locked"}}selected{{end}}>locked</option><option value="hidden" {{if eq .Site.DefaultPageState "hidden"}}selected{{end}}>hidden</option><option value="archived" {{if eq .Site.DefaultPageState "archived"}}selected{{end}}>archived</option></select></div>
   <div class="field"><label>Default theme</label><select name="default_theme"><option value="auto" {{if eq .Site.DefaultTheme "auto"}}selected{{end}}>auto</option><option value="light" {{if eq .Site.DefaultTheme "light"}}selected{{end}}>light</option><option value="dark" {{if eq .Site.DefaultTheme "dark"}}selected{{end}}>dark</option><option value="minimal" {{if eq .Site.DefaultTheme "minimal"}}selected{{end}}>minimal</option></select></div>
-  <div class="field"><label>Max comment length</label><input type="number" name="max_comment_length" value="{{.Site.MaxCommentLength}}" min="1"></div>
+  <div class="field"><label>Max comment length</label><input type="number" name="max_comment_length" value="{{.Site.MaxCommentLength}}" min="1" required></div>
   <label><input type="checkbox" name="allow_replies" value="1" {{if .Site.AllowReplies}}checked{{end}}> Allow replies</label>
   <button class="primary">Save site</button>
 </form>
@@ -55,7 +55,7 @@
       <td class="comment-excerpt" title="{{.BodyMarkdown}}"><div class="comment-preview">{{safeHTML .BodyHTML}}</div></td>
       <td>{{.CreatedAt}}</td>
       <td class="row-actions">
-        <a href="/admin/comments/{{.ID}}">Open</a>
+        <a href="/admin/comments/{{.ID}}">View / Moderate</a>
         {{if $.Inline}}
         <form method="post" action="/admin/comments/{{.ID}}/approve"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="approve" title="Shortcut: a">{{if eq .Status "deleted"}}Restore{{else}}Approve{{end}}</button></form>
         <form method="post" action="/admin/comments/{{.ID}}/spam"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="spam" title="Shortcut: s">Spam</button></form>

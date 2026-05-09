@@ -48,7 +48,8 @@ func (h *Handlers) IdentityDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sites, _ := h.sites.List(r.Context())
-	h.render(w, r, "admin/identity_detail.html", map[string]any{"Identity": identity, "Sites": sites, "Action": "/admin/identities/" + strconv.FormatInt(identity.ID, 10), "Mode": "edit"})
+	commentCount, _ := h.comments.CountByIdentity(r.Context(), identity.ID)
+	h.render(w, r, "admin/identity_detail.html", map[string]any{"Identity": identity, "Sites": sites, "CommentCount": commentCount, "Action": "/admin/identities/" + strconv.FormatInt(identity.ID, 10), "Mode": "edit"})
 }
 
 func (h *Handlers) UpdateIdentity(w http.ResponseWriter, r *http.Request) {

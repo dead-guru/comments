@@ -29,6 +29,10 @@ document.addEventListener("submit", function (event) {
     rememberScrollPosition();
     return;
   }
+  if (!validateOriginList(form)) {
+    event.preventDefault();
+    return;
+  }
   if (form.matches("[data-confirm]")) {
     event.preventDefault();
     openConfirm(form, form.getAttribute("data-confirm"), form.getAttribute("data-confirm-token") || "");
@@ -44,6 +48,32 @@ document.addEventListener("submit", function (event) {
   }
   if (form.querySelector('[name="redirect_to"]')) {
     rememberScrollPosition();
+  }
+});
+
+function validateOriginList(form) {
+  var input = form.querySelector("[data-origin-list]");
+  if (!input) return true;
+  var lines = input.value.split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
+  for (var i = 0; i < lines.length; i += 1) {
+    try {
+      var url = new URL(lines[i]);
+      if ((url.protocol !== "http:" && url.protocol !== "https:") || url.pathname !== "/" || url.search || url.hash) {
+        throw new Error("invalid origin");
+      }
+    } catch (_) {
+      input.setCustomValidity("Use full origins like https://example.com, one per line.");
+      input.reportValidity();
+      return false;
+    }
+  }
+  input.setCustomValidity("");
+  return true;
+}
+
+document.addEventListener("input", function (event) {
+  if (event.target.matches("[data-origin-list]")) {
+    event.target.setCustomValidity("");
   }
 });
 

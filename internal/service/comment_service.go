@@ -310,6 +310,10 @@ func (s *CommentService) CountTodayByStatus(ctx context.Context, status domain.C
 	return s.comments.CountTodayByStatus(ctx, status)
 }
 
+func (s *CommentService) CountByIdentity(ctx context.Context, identityID int64) (int, error) {
+	return s.comments.CountByIdentity(ctx, identityID)
+}
+
 func (s *CommentService) findOrCreatePage(ctx context.Context, site *domain.Site, pageKey, title, pageURL string) (*domain.Page, error) {
 	page, created, err := s.pages.FindOrCreate(ctx, site, pageKey, title, pageURL)
 	if err != nil || !created || page == nil {

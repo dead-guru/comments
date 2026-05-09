@@ -13,7 +13,7 @@ func (h *Handlers) Pages(w http.ResponseWriter, r *http.Request) {
 		siteID = &id
 	}
 	pages, _ := h.pages.List(r.Context(), siteID, r.URL.Query().Get("state"), r.URL.Query().Get("q"))
-	h.render(w, r, "admin/pages_list.html", map[string]any{"Pages": pages, "SiteID": siteID})
+	h.render(w, r, "admin/pages_list.html", map[string]any{"Pages": pages, "SiteID": siteID, "Filters": r.URL.Query()})
 }
 
 func (h *Handlers) PageDetail(w http.ResponseWriter, r *http.Request) {

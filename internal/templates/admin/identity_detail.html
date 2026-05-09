@@ -2,6 +2,11 @@
 <h1>{{.Identity.DisplayName}}</h1>
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 <p class="notice">Tripcode secrets are never shown after creation. To change this identity's secret, use the reset form below.</p>
+<section class="panel">
+  <h2>Usage</h2>
+  <p><strong>{{.CommentCount}}</strong> comments are attached to this identity.</p>
+  <p class="muted">Deleting the identity does not delete comments. Existing comments keep their public author name and tripcode fields, but lose the reserved identity attachment and badge relation.</p>
+</section>
 {{template "identity_form_fields" .}}
 <section class="panel">
   <h2>Reset secret</h2>

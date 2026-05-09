@@ -104,6 +104,7 @@ func (h *Handlers) render(w http.ResponseWriter, r *http.Request, name string, d
 	data["CSRFToken"] = h.csrf.Token(w, r)
 	data["Admin"] = middleware.AdminFromContext(r.Context())
 	data["CurrentPath"] = r.URL.RequestURI()
+	data["RequestPath"] = r.URL.Path
 	data["Flash"] = r.URL.Query().Get("flash")
 	data["Error"] = r.URL.Query().Get("error")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -10,6 +10,8 @@
   <input name="ua_hash" value="{{.Filters.Get "ua_hash"}}" placeholder="User-agent hash">
   <button>Filter</button>
   <a class="button" href="/admin/comments">Clear</a>
+  <button formaction="/admin/comments/export" name="format" value="json">Export JSON</button>
+  <button formaction="/admin/comments/export" name="format" value="csv">Export CSV</button>
 </form>
 <p class="muted keyboard-help">Shortcuts: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>a</kbd> approve, <kbd>s</kbd> spam, <kbd>r</kbd> reject.</p>
 {{template "comments_table" dict "Comments" .Comments "CSRFToken" .CSRFToken "Bulk" true "Inline" true "ReturnTo" .CurrentPath}}

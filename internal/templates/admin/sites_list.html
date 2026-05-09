@@ -1,5 +1,6 @@
 {{template "admin_head" .}}
 <div class="actions"><h1>Sites</h1><a class="button primary" href="/admin/sites/new">New site</a></div>
+{{if .Sites}}
 <table>
   <thead><tr><th>Name</th><th>Key</th><th>Origins</th><th>Moderation</th><th>Default page</th><th>Actions</th></tr></thead>
   <tbody>
@@ -9,7 +10,14 @@
     <td>{{.DefaultModerationMode}}</td><td>{{.DefaultPageState}}</td>
     <td><a href="/admin/sites/{{.ID}}">Settings</a> · <a href="/admin/sites/{{.ID}}/pages">Pages</a></td>
   </tr>
-  {{else}}<tr><td colspan="6" class="muted">No sites yet.</td></tr>{{end}}
+  {{end}}
   </tbody>
 </table>
+{{else}}
+<section class="panel empty-state">
+  <h2>Create your first site</h2>
+  <p class="muted">A site defines allowed origins, moderation defaults, and widget configuration.</p>
+  <a class="button primary" href="/admin/sites/new">New site</a>
+</section>
+{{end}}
 {{template "admin_foot" .}}

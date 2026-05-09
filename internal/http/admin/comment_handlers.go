@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -21,6 +23,30 @@ func (h *Handlers) Comments(w http.ResponseWriter, r *http.Request) {
 		"Status":   filter.Status,
 		"Filters":  r.URL.Query(),
 	})
+}
+
+func (h *Handlers) ExportComments(w http.ResponseWriter, r *http.Request) {
+	filter := commentListFilterFromRequest(r)
+	filter.Limit = 5000
+	comments, _ := h.comments.AdminListFiltered(r.Context(), filter)
+	if r.URL.Query().Get("format") == "csv" {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="deadcomments-comments.csv"`)
+		out := csv.NewWriter(w)
+		_ = out.Write([]string{"id", "site_key", "page_key", "page_title", "author", "status", "moderation_reason", "body_markdown", "created_at"})
+		for _, c := range comments {
+			reason := ""
+			if c.ModerationReason != nil {
+				reason = *c.ModerationReason
+			}
+			_ = out.Write([]string{c.ID, c.SiteKey, c.PageKey, c.PageTitle, c.AuthorDisplayName, string(c.Status), reason, c.BodyMarkdown, c.CreatedAt.Format("2006-01-02T15:04:05Z07:00")})
+		}
+		out.Flush()
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="deadcomments-comments.json"`)
+	_ = json.NewEncoder(w).Encode(comments)
 }
 
 func (h *Handlers) PendingComments(w http.ResponseWriter, r *http.Request) {
