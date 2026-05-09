@@ -57,9 +57,9 @@
       <td class="row-actions">
         <a href="/admin/comments/{{.ID}}">View / Moderate</a>
         {{if $.Inline}}
-        <form method="post" action="/admin/comments/{{.ID}}/approve"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="approve" title="Shortcut: a">{{if eq .Status "deleted"}}Restore{{else}}Approve{{end}}</button></form>
-        <form method="post" action="/admin/comments/{{.ID}}/spam"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="spam" title="Shortcut: s">Spam</button></form>
-        <form method="post" action="/admin/comments/{{.ID}}/reject"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="reject" title="Shortcut: r">Reject</button></form>
+        <form method="post" action="/admin/comments/{{.ID}}/approve"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact success" data-action="approve" title="Shortcut: a">{{if eq .Status "deleted"}}Restore{{else}}Approve{{end}}</button></form>
+        <form method="post" action="/admin/comments/{{.ID}}/spam"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact warning" data-action="spam" title="Shortcut: s">Spam</button></form>
+        <form method="post" action="/admin/comments/{{.ID}}/reject"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact warning" data-action="reject" title="Shortcut: r">Reject</button></form>
         {{end}}
       </td>
     </tr>
@@ -71,9 +71,9 @@
 {{end}}
 
 {{define "comment_actions"}}
-<form method="post" action="/admin/comments/{{.Comment.ID}}/approve"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Approve</button></form>
-<form method="post" action="/admin/comments/{{.Comment.ID}}/reject"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Reject</button></form>
-<form method="post" action="/admin/comments/{{.Comment.ID}}/spam"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Spam</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/approve"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="success">Approve</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/reject"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="warning">Reject</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/spam"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="warning">Spam</button></form>
 <form method="post" action="/admin/comments/{{.Comment.ID}}/delete" data-confirm="Delete this comment by {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}?" data-confirm-token="DELETE"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="danger">Delete</button></form>
 {{end}}
 

@@ -121,6 +121,12 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 		"siteSelected": func(selected *int64, id int64) bool {
 			return selected != nil && *selected == id
 		},
+		"navActive": func(current, item string) bool {
+			if item == "/admin" {
+				return current == "/admin"
+			}
+			return strings.HasPrefix(current, item)
+		},
 	}
 	tmpl, err := template.New("").Funcs(funcs).ParseGlob(filepath.Join("internal", "templates", "*.html"))
 	if err != nil {

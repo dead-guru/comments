@@ -1,4 +1,11 @@
 {{template "admin_head" .}}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a href="/admin/comments">Comments</a>
+  <span aria-hidden="true">/</span>
+  <a href="/admin/pages/{{.Comment.PageID}}">{{if .Comment.PageTitle}}{{.Comment.PageTitle}}{{else}}{{.Comment.PageKey}}{{end}}</a>
+  <span aria-hidden="true">/</span>
+  <span>Comment</span>
+</nav>
 <h1>Comment by {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</h1>
 <section class="panel">
   <p><strong>Status:</strong> <span class="status-{{.Comment.Status}}">{{.Comment.Status}}</span></p>

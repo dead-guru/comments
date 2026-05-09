@@ -3,7 +3,7 @@
   <h1>Admin login</h1>
   <p class="muted">Sign in with an allowed GitHub account.</p>
   {{if .GitHubConfigured}}
-  <a class="button primary" href="/auth/github/start">Continue with GitHub</a>
+  <a class="button primary with-icon" href="/auth/github/start"><span aria-hidden="true" class="github-mark"></span>Continue with GitHub</a>
   {{else}}
   <div class="notice error">
     GitHub OAuth is not configured. Set <code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code>, and <code>GITHUB_ALLOWED_LOGINS</code>, then restart deadcomments.

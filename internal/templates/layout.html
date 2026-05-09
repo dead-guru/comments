@@ -12,12 +12,12 @@
   <div class="topbar">
     <nav class="nav">
       <a class="brand" href="/admin">deadcomments</a>
-      <a href="/admin/sites">Sites</a>
-      <a href="/admin/comments/pending">Pending</a>
-      <a href="/admin/comments">Comments</a>
-      <a href="/admin/identities">Identities</a>
-      <a href="/admin/bans">Bans</a>
-      <a href="/admin/events">Events</a>
+      <a href="/admin/sites" class="{{if navActive .RequestPath "/admin/sites"}}is-active{{end}}" {{if navActive .RequestPath "/admin/sites"}}aria-current="page"{{end}}>Sites</a>
+      <a href="/admin/comments/pending" class="{{if eq .RequestPath "/admin/comments/pending"}}is-active{{end}}" {{if eq .RequestPath "/admin/comments/pending"}}aria-current="page"{{end}}>Pending</a>
+      <a href="/admin/comments" class="{{if and (navActive .RequestPath "/admin/comments") (ne .RequestPath "/admin/comments/pending")}}is-active{{end}}" {{if and (navActive .RequestPath "/admin/comments") (ne .RequestPath "/admin/comments/pending")}}aria-current="page"{{end}}>Comments</a>
+      <a href="/admin/identities" class="{{if navActive .RequestPath "/admin/identities"}}is-active{{end}}" {{if navActive .RequestPath "/admin/identities"}}aria-current="page"{{end}}>Identities</a>
+      <a href="/admin/bans" class="{{if navActive .RequestPath "/admin/bans"}}is-active{{end}}" {{if navActive .RequestPath "/admin/bans"}}aria-current="page"{{end}}>Bans</a>
+      <a href="/admin/events" class="{{if navActive .RequestPath "/admin/events"}}is-active{{end}}" {{if navActive .RequestPath "/admin/events"}}aria-current="page"{{end}}>Events</a>
       {{if .Admin}}
       <form method="post" action="/admin/logout">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
