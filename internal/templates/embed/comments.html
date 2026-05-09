@@ -424,7 +424,12 @@
       payload.page_url = wrap.dataset.url || "";
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments";
       var button = form.querySelector("button[type='submit'], .dc-btn.primary");
-      if (button) button.disabled = true;
+      if (button) {
+        button.dataset.label = button.textContent;
+        button.textContent = "Submitting...";
+        button.classList.add("is-loading");
+        button.disabled = true;
+      }
       try {
         var res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
         var data = {};
@@ -442,7 +447,12 @@
       } finally {
         form.dataset.submitting = "false";
         form.removeAttribute("aria-busy");
-        if (button) button.disabled = false;
+        if (button) {
+          button.disabled = false;
+          button.classList.remove("is-loading");
+          button.textContent = button.dataset.label || "Submit comment";
+          delete button.dataset.label;
+        }
       }
     });
     document.querySelectorAll(".dc-time[data-time]").forEach(function (node) {
