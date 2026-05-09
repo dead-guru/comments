@@ -337,7 +337,11 @@
       var thread = ensureThread();
       var node = renderComment(comment, !parentID);
       if (!parentID) {
-        thread.appendChild(node);
+        if (wrap.dataset.sort === "newest" && thread.firstChild) {
+          thread.insertBefore(node, thread.firstChild);
+        } else {
+          thread.appendChild(node);
+        }
       } else {
         var parent = document.querySelector('[data-comment-id="' + CSS.escape(parentID) + '"]');
         if (parent) {
@@ -548,7 +552,13 @@
           showFormMessage(form, false, data.message || data.error || "Unable to submit comment.");
           return;
         }
-        if (data.status === "approved" || data.status === "pending") appendSubmittedComment(data.comment, payload.parent_id);
+        if (data.status === "approved" || data.status === "pending") {
+          if (!payload.parent_id && wrap.dataset.sort === "best" && data.status === "approved") {
+            await loadSortedComments("best");
+          } else {
+            appendSubmittedComment(data.comment, payload.parent_id);
+          }
+        }
         showFormMessage(form, true, data.message || "Comment submitted.");
         if (form.classList.contains("reply")) closeReplyForm();
         sendHeight();
