@@ -33,7 +33,9 @@ func NewHandlers(sites *service.SiteService, pages *service.PageService, comment
 }
 
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, "admin/login.html", map[string]any{})
+	h.render(w, r, "admin/login.html", map[string]any{
+		"GitHubConfigured": h.auth.GitHubConfigured(),
+	})
 }
 
 func (h *Handlers) AdminCSS(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +49,10 @@ func (h *Handlers) AdminJS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GitHubStart(w http.ResponseWriter, r *http.Request) {
+	if !h.auth.GitHubConfigured() {
+		http.Error(w, "GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.", http.StatusServiceUnavailable)
+		return
+	}
 	state, _ := dcauth.NewToken()
 	http.SetCookie(w, &http.Cookie{Name: "dc_oauth_state", Value: state, Path: "/auth/github", HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode, MaxAge: 600})
 	http.Redirect(w, r, h.auth.GitHubAuthURL(state), http.StatusFound)

@@ -26,6 +26,10 @@ func NewAuthService(admins *repository.AdminRepository, sessions *repository.Ses
 	return &AuthService{admins: admins, sessions: sessions, github: github, allowed: allowed, sessionSecret: sessionSecret, sessionTTL: sessionTTL, events: optionalPublisher(events)}
 }
 
+func (s *AuthService) GitHubConfigured() bool {
+	return s.github.Configured()
+}
+
 func (s *AuthService) GitHubAuthURL(state string) string {
 	return s.github.AuthCodeURL(state)
 }

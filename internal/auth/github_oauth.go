@@ -36,6 +36,10 @@ func (g *GitHubOAuth) AuthCodeURL(state string) string {
 	return g.config.AuthCodeURL(state, oauth2.AccessTypeOnline)
 }
 
+func (g *GitHubOAuth) Configured() bool {
+	return g.config.ClientID != "" && g.config.ClientSecret != ""
+}
+
 func (g *GitHubOAuth) ExchangeUser(ctx context.Context, code string) (*GitHubUser, error) {
 	token, err := g.config.Exchange(ctx, code)
 	if err != nil {
