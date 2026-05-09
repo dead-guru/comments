@@ -29,6 +29,7 @@
   iframe.style.border = "0";
   iframe.style.display = "block";
   iframe.style.overflow = "hidden";
+  iframe.style.minHeight = "180px";
   iframe.setAttribute("scrolling", "no");
 
   window.addEventListener("message", function (event) {
@@ -36,7 +37,7 @@
     if (!event.data) return;
     if (event.data.type === "deadcomments:height") {
       var height = Number(event.data.height);
-      if (height > 0 && height < 20000) iframe.style.height = height + "px";
+      if (height > 0 && height < 20000) iframe.style.height = Math.max(180, height) + "px";
       return;
     }
     if (event.data.type === "deadcomments:scrollIntoView") {

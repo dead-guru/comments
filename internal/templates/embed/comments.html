@@ -34,10 +34,15 @@
     var profileKey = "deadcomments:author:v1";
     var wrap = document.querySelector(".dc-wrap");
     var parentOrigin = safeOrigin(wrap ? wrap.dataset.origin : "");
+    var heightTimer = 0;
 
-    function sendHeight() {
+    function postHeight() {
       if (!parentOrigin) return;
       parent.postMessage({type: "deadcomments:height", height: document.documentElement.scrollHeight}, parentOrigin);
+    }
+    function sendHeight() {
+      window.clearTimeout(heightTimer);
+      heightTimer = window.setTimeout(postHeight, 80);
     }
     function safeOrigin(raw) {
       try {
