@@ -320,6 +320,12 @@ body {
   display: grid;
   gap: 8px;
 }
+.dc-form.is-previewing [data-write-panel] {
+  display: none;
+}
+.dc-form:not(.is-previewing) [data-preview-panel] {
+  display: none;
+}
 .dc-editor-tabs {
   display: inline-flex;
   width: fit-content;

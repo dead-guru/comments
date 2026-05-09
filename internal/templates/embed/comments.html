@@ -299,6 +299,7 @@
       var write = form.querySelector("[data-write-panel]");
       var preview = form.querySelector("[data-preview-panel]");
       var body = form.querySelector('[name="body_markdown"]');
+      form.classList.toggle("is-previewing", mode === "preview");
       form.querySelectorAll("[data-editor-tab]").forEach(function (tab) {
         var active = tab.dataset.editorTab === mode;
         tab.classList.toggle("is-active", active);
@@ -306,6 +307,8 @@
       });
       if (write) write.hidden = mode !== "write";
       if (preview) preview.hidden = mode !== "preview";
+      if (write) write.setAttribute("aria-hidden", mode === "write" ? "false" : "true");
+      if (preview) preview.setAttribute("aria-hidden", mode === "preview" ? "false" : "true");
       if (body) body.required = mode === "write";
       if (mode === "preview") loadPreview(form);
       sendHeight();
