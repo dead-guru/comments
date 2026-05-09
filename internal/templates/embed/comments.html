@@ -42,6 +42,8 @@
     var wrap = document.querySelector(".dc-wrap");
     var parentOrigin = safeOrigin(wrap ? wrap.dataset.origin : "");
     var heightTimer = 0;
+    var pollTimer = 0;
+    var localPending = [];
 
     window.addEventListener("message", function (event) {
       if (!parentOrigin || event.origin !== parentOrigin || !event.data) return;
@@ -312,6 +314,35 @@
         thread.appendChild(renderCommentBranch(comment, true));
       });
     }
+    function collectCommentIDs(comments, ids) {
+      ids = ids || {};
+      (comments || []).forEach(function (comment) {
+        if (!comment || !comment.id) return;
+        ids[comment.id] = true;
+        collectCommentIDs(comment.children || [], ids);
+      });
+      return ids;
+    }
+    function rememberPendingComment(comment, parentID) {
+      if (!comment || !comment.id || comment.status !== "pending") return;
+      localPending = localPending.filter(function (item) {
+        return item.comment.id !== comment.id;
+      });
+      localPending.push({comment: comment, parentID: parentID || comment.parent_id || null});
+    }
+    function prunePendingComments(serverComments) {
+      if (localPending.length === 0) return;
+      var approved = collectCommentIDs(serverComments || []);
+      localPending = localPending.filter(function (item) {
+        return !approved[item.comment.id];
+      });
+    }
+    function restorePendingComments() {
+      if (localPending.length === 0) return;
+      localPending.forEach(function (item) {
+        appendSubmittedComment(item.comment, item.parentID, {highlight: false});
+      });
+    }
     function setActiveSort(sort) {
       wrap.dataset.sort = sort;
       document.querySelectorAll(".dc-sort-btn[data-sort]").forEach(function (button) {
@@ -320,10 +351,12 @@
         button.disabled = active;
       });
     }
-    async function loadSortedComments(sort) {
+    async function loadSortedComments(sort, options) {
+      options = options || {};
       sort = sort || "oldest";
       var previous = wrap.dataset.sort || "oldest";
-      if (document.querySelector(".dc-form.reply")) closeReplyForm();
+      if (options.skipWhenReplyOpen && document.querySelector(".dc-form.reply")) return;
+      if (options.closeReplyForm && document.querySelector(".dc-form.reply")) closeReplyForm();
       setActiveSort(sort);
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments?sort=" + encodeURIComponent(sort);
       try {
@@ -331,7 +364,10 @@
         var data = {};
         try { data = await res.json(); } catch (_) {}
         if (!res.ok) throw new Error(data.error || "Unable to load comments.");
-        replaceComments(data.comments || []);
+        var comments = data.comments || [];
+        replaceComments(comments);
+        prunePendingComments(comments);
+        restorePendingComments();
         if (data.sort) setActiveSort(data.sort);
       } catch (_) {
         setActiveSort(previous);
@@ -339,7 +375,8 @@
         sendHeight();
       }
     }
-    function appendSubmittedComment(comment, parentID) {
+    function appendSubmittedComment(comment, parentID, options) {
+      options = options || {};
       if (!comment || !comment.id) return;
       var thread = ensureThread();
       if (!parentID) {
@@ -368,7 +405,11 @@
           thread.appendChild(node);
         }
       }
-      highlightComment(comment.id);
+      if (options.highlight !== false) highlightComment(comment.id);
+    }
+    function pollComments() {
+      if (!wrap || !wrap.dataset.site || !wrap.dataset.page || document.hidden) return;
+      loadSortedComments(wrap.dataset.sort || "oldest", {skipWhenReplyOpen: true});
     }
     function commentURL(id) {
       try {
@@ -525,7 +566,7 @@
       var cancel = event.target.closest("[data-cancel-reply]");
       if (cancel) closeReplyForm();
       var sort = event.target.closest(".dc-sort-btn[data-sort]");
-      if (sort) loadSortedComments(sort.dataset.sort);
+      if (sort) loadSortedComments(sort.dataset.sort, {closeReplyForm: true});
       var tab = event.target.closest("[data-editor-tab]");
       if (tab) {
         var form = tab.closest(".dc-form");
@@ -572,6 +613,7 @@
           return;
         }
         if (data.status === "approved" || data.status === "pending") {
+          if (data.status === "pending") rememberPendingComment(data.comment, payload.parent_id);
           if (!payload.parent_id && wrap.dataset.sort === "best" && data.status === "approved") {
             await loadSortedComments("best");
           } else {
@@ -599,6 +641,13 @@
       node.title = fullTime(node.dataset.time) || node.title;
     });
     document.querySelectorAll(".dc-form").forEach(setupForm);
+    pollTimer = window.setInterval(pollComments, 30000);
+    window.addEventListener("visibilitychange", function () {
+      if (!document.hidden) pollComments();
+    });
+    window.addEventListener("pagehide", function () {
+      window.clearInterval(pollTimer);
+    });
     window.setTimeout(function () { highlightComment(requestedCommentID()); }, 120);
     new ResizeObserver(sendHeight).observe(document.body);
     window.addEventListener("load", sendHeight);
