@@ -80,8 +80,8 @@
         add: "Comment on selection",
         name: "Name",
         email: "Email (optional)",
-        website: "Website (optional)",
         comment: "Comment",
+        reply: "Reply to selection",
         submit: "Submit",
         submitting: "Submitting...",
         cancel: "Cancel",
@@ -101,8 +101,8 @@
         add: "Коментар до виділення",
         name: "Ім'я",
         email: "Email (не показується)",
-        website: "Сайт (необов'язково)",
         comment: "Коментар",
+        reply: "Відповісти до виділення",
         submit: "Надіслати",
         submitting: "Надсилаємо...",
         cancel: "Скасувати",
@@ -229,24 +229,8 @@
 
   function openPopover(anchor) {
     closePopover({keepSelection: true});
-    popover = document.createElement("form");
-    popover.className = "dc-annotation-popover";
-    popover.innerHTML = [
-      '<div class="dc-annotation-title"></div>',
-      '<blockquote class="dc-annotation-quote"></blockquote>',
-      '<div class="dc-annotation-grid">',
-      '<label><span></span><input name="author_name" autocomplete="name" required></label>',
-      '<label><span></span><input name="author_email" type="email" autocomplete="email"></label>',
-      '</div>',
-      '<div class="dc-annotation-hints"><span></span><span></span></div>',
-      '<label><span></span><input name="author_website" type="url" autocomplete="url"></label>',
-      '<label><span></span><textarea name="body_markdown" rows="4" required></textarea></label>',
-      '<input name="honeypot" class="dc-annotation-honeypot" tabindex="-1" autocomplete="off">',
-      '<div class="dc-annotation-message" role="alert" aria-live="polite"></div>',
-      '<div class="dc-annotation-actions"><button class="dc-annotation-submit" type="submit"></button><button class="dc-annotation-cancel" type="button"></button></div>'
-    ].join("");
-    fillPopoverText(popover);
-    restoreProfile(popover);
+    popover = createAnnotationForm("dc-annotation-popover", {quote: true, title: t("add"), submit: t("submit")});
+    popover._dcSelection = activeSelection;
     popover.addEventListener("submit", submitAnnotation);
     popover.querySelector(".dc-annotation-cancel").addEventListener("click", closePopover);
     document.body.appendChild(popover);
@@ -256,18 +240,39 @@
     }, 0);
   }
 
-  function fillPopoverText(form) {
-    var labels = form.querySelectorAll("label > span");
-    labels[0].textContent = t("name");
-    labels[1].textContent = t("email");
-    labels[2].textContent = t("website");
-    labels[3].textContent = t("comment");
+  function createAnnotationForm(className, options) {
+    options = options || {};
+    var form = document.createElement("form");
+    form.className = className;
+    form.innerHTML = [
+      '<div class="dc-annotation-title"></div>',
+      options.quote ? '<blockquote class="dc-annotation-quote"></blockquote>' : '',
+      '<div class="dc-annotation-grid">',
+      '<label><span data-label="name"></span><input name="author_name" autocomplete="name" required></label>',
+      '<label><span data-label="email"></span><input name="author_email" type="email" autocomplete="email"></label>',
+      '</div>',
+      '<div class="dc-annotation-hints"><span></span><span></span></div>',
+      '<label><span data-label="comment"></span><textarea name="body_markdown" rows="4" required></textarea></label>',
+      '<input name="honeypot" class="dc-annotation-honeypot" tabindex="-1" autocomplete="off">',
+      '<div class="dc-annotation-message" role="alert" aria-live="polite"></div>',
+      '<div class="dc-annotation-actions"><button class="dc-annotation-submit" type="submit"></button><button class="dc-annotation-cancel" type="button"></button></div>'
+    ].join("");
+    fillAnnotationForm(form, options);
+    restoreProfile(form);
+    return form;
+  }
+
+  function fillAnnotationForm(form, options) {
+    options = options || {};
+    form.querySelector('[data-label="name"]').textContent = t("name");
+    form.querySelector('[data-label="email"]').textContent = t("email");
+    form.querySelector('[data-label="comment"]').textContent = t("comment");
     var hints = form.querySelectorAll(".dc-annotation-hints span");
     hints[0].textContent = t("tripcode");
     hints[1].textContent = t("avatar");
-    form.querySelector(".dc-annotation-title").textContent = t("add");
-    form.querySelector(".dc-annotation-quote").textContent = activeSelection ? activeSelection.text : "";
-    form.querySelector(".dc-annotation-submit").textContent = t("submit");
+    form.querySelector(".dc-annotation-title").textContent = options.title || t("add");
+    if (options.quote) form.querySelector(".dc-annotation-quote").textContent = activeSelection ? activeSelection.text : "";
+    form.querySelector(".dc-annotation-submit").textContent = options.submit || t("submit");
     form.querySelector(".dc-annotation-cancel").textContent = t("cancel");
   }
 
@@ -314,7 +319,7 @@
   function restoreProfile(form) {
     try {
       var saved = JSON.parse(localStorage.getItem(profileKey()) || "{}");
-      ["author_name", "author_email", "author_website"].forEach(function (name) {
+      ["author_name", "author_email"].forEach(function (name) {
         if (saved[name]) form.elements[name].value = saved[name];
       });
     } catch (_) {}
@@ -324,16 +329,16 @@
     try {
       localStorage.setItem(profileKey(), JSON.stringify({
         author_name: form.elements.author_name.value,
-        author_email: form.elements.author_email.value,
-        author_website: form.elements.author_website.value
+        author_email: form.elements.author_email.value
       }));
     } catch (_) {}
   }
 
   function submitAnnotation(event) {
     event.preventDefault();
-    if (!activeSelection) return;
     var form = event.currentTarget;
+    var selection = form._dcSelection || activeSelection;
+    if (!selection) return;
     var button = form.querySelector(".dc-annotation-submit");
     var oldText = button.textContent;
     button.disabled = true;
@@ -346,18 +351,18 @@
       body: JSON.stringify({
         author_name: form.elements.author_name.value,
         author_email: form.elements.author_email.value,
-        author_website: form.elements.author_website.value,
+        author_website: "",
         body_markdown: form.elements.body_markdown.value,
         honeypot: form.elements.honeypot.value,
         page_title: document.title || "",
         page_url: window.location.href,
         locale: locale,
-        selector: activeSelection.selector,
-        selected_text: activeSelection.text,
-        selection_prefix: activeSelection.prefix,
-        selection_suffix: activeSelection.suffix,
-        text_start: activeSelection.textStart,
-        text_end: activeSelection.textEnd
+        selector: selection.selector,
+        selected_text: selection.text,
+        selection_prefix: selection.prefix,
+        selection_suffix: selection.suffix,
+        text_start: selection.textStart,
+        text_end: selection.textEnd
       })
     }).then(function (response) {
       return response.json().then(function (data) {
@@ -455,7 +460,13 @@
 
   function highlightGroup(key, group) {
     var annotation = group[0];
-    if (document.querySelector('[data-dc-annotation-key="' + cssEscape(key) + '"]')) return;
+    var existing = document.querySelector('[data-dc-annotation-key="' + cssEscape(key) + '"]');
+    if (existing) {
+      if (group.length > 1) existing.setAttribute("data-count", String(group.length));
+      else existing.removeAttribute("data-count");
+      if (group.some(function (item) { return item._localPending; })) existing.classList.add("is-pending");
+      return;
+    }
     var root = document.querySelector(annotation.selector);
     if (!root) return;
     var range = rangeForAnnotation(root, annotation);
@@ -474,11 +485,11 @@
     } catch (_) {
       return;
     }
-    mark.addEventListener("click", function () { openPanel(key, {focusComment: true}); });
+    mark.addEventListener("click", function () { openPanel(key); });
     mark.addEventListener("keydown", function (event) {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        openPanel(key, {focusComment: true});
+        openPanel(key);
       }
     });
   }
@@ -548,25 +559,12 @@
     return true;
   }
 
-  function focusCommentForGroup(group) {
-    var first = group && group[0];
-    var comment = first && first.comment;
-    if (!comment || !comment.id) return;
-    window.postMessage({
-      type: "deadcomments:commentFocus",
-      annotation_id: first.id,
-      comment_id: comment.id
-    }, window.location.origin);
-  }
-
-  function openPanel(key, options) {
-    options = options || {};
+  function openPanel(key) {
     closePanel();
     var group = groups[key] || [];
-    if (options.focusComment) focusCommentForGroup(group);
     panel = document.createElement("aside");
     panel.className = "dc-annotation-panel";
-    panel.innerHTML = '<button class="dc-annotation-panel-close" type="button"></button><h2></h2><blockquote></blockquote><div class="dc-annotation-panel-list"></div>';
+    panel.innerHTML = '<button class="dc-annotation-panel-close" type="button"></button><h2></h2><blockquote></blockquote><div class="dc-annotation-panel-list"></div><div class="dc-annotation-panel-reply"></div>';
     panel.querySelector(".dc-annotation-panel-close").textContent = "×";
     panel.querySelector(".dc-annotation-panel-close").setAttribute("aria-label", t("close"));
     panel.querySelector("h2").textContent = t("thread");
@@ -581,9 +579,31 @@
     group.forEach(function (annotation) {
       list.appendChild(commentCard(annotation));
     });
+    var reply = panel.querySelector(".dc-annotation-panel-reply");
+    if (group[0]) {
+      var replyForm = createAnnotationForm("dc-annotation-reply-form", {title: t("reply"), submit: t("submit")});
+      replyForm._dcSelection = selectionFromAnnotation(group[0]);
+      replyForm.addEventListener("submit", submitAnnotation);
+      replyForm.querySelector(".dc-annotation-cancel").addEventListener("click", function () {
+        replyForm.querySelector('textarea[name="body_markdown"]').value = "";
+        setFormMessage(replyForm, "", "");
+      });
+      reply.appendChild(replyForm);
+    }
     panel.querySelector(".dc-annotation-panel-close").addEventListener("click", closePanel);
     document.body.appendChild(panel);
     requestAnimationFrame(function () { panel.classList.add("is-open"); });
+  }
+
+  function selectionFromAnnotation(annotation) {
+    return {
+      selector: annotation.selector,
+      text: annotation.selected_text,
+      prefix: annotation.selection_prefix || "",
+      suffix: annotation.selection_suffix || "",
+      textStart: annotation.text_start,
+      textEnd: annotation.text_end
+    };
   }
 
   function closePanel() {
@@ -644,14 +664,15 @@
       ".dc-annotation-mark[data-count]::after{content:attr(data-count);display:inline-flex;align-items:center;justify-content:center;min-width:1.25em;height:1.25em;margin-left:.25em;border-radius:999px;background:#0969da;color:#fff;font:700 .68em/1 system-ui}",
       ".dc-annotation-popover{position:absolute;z-index:2147483000;box-sizing:border-box;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;box-shadow:0 16px 48px rgba(0,0,0,.38);padding:14px;font:14px/1.45 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
       ".dc-annotation-title{font-weight:700;font-size:15px;margin-bottom:8px}.dc-annotation-quote{margin:0 0 12px;padding:8px 10px;border-left:3px solid #58a6ff;background:rgba(88,166,255,.08);color:#c9d1d9;max-height:88px;overflow:auto}",
-      ".dc-annotation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dc-annotation-popover label{display:grid;gap:5px;margin-top:10px;color:#8b949e;font-weight:650}.dc-annotation-popover input,.dc-annotation-popover textarea{width:100%;box-sizing:border-box;border:1px solid #30363d;border-radius:6px;background:#010409;color:#e6edf3;padding:9px 10px;font:inherit}.dc-annotation-popover textarea{resize:vertical}",
+      ".dc-annotation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dc-annotation-popover label,.dc-annotation-reply-form label{display:grid;gap:5px;margin-top:10px;color:#8b949e;font-weight:650}.dc-annotation-popover input,.dc-annotation-popover textarea,.dc-annotation-reply-form input,.dc-annotation-reply-form textarea{width:100%;box-sizing:border-box;border:1px solid #30363d;border-radius:6px;background:#010409;color:#e6edf3;padding:9px 10px;font:inherit}.dc-annotation-popover textarea,.dc-annotation-reply-form textarea{resize:vertical}",
       ".dc-annotation-hints{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;color:#8b949e;font-size:12px}.dc-annotation-actions{display:flex;align-items:center;gap:10px;margin-top:12px}.dc-annotation-submit{border:0;border-radius:6px;background:#238636;color:#fff;font-weight:700;padding:9px 14px}.dc-annotation-submit:disabled{opacity:.65}.dc-annotation-cancel{border:0;background:transparent;color:#8b949e;font-weight:700;padding:9px 10px}.dc-annotation-message{min-height:18px;margin-top:8px;font-size:13px}.dc-annotation-message.is-error{color:#ff7b72}.dc-annotation-honeypot{position:absolute!important;left:-10000px!important}",
       ".dc-annotation-panel{position:fixed;z-index:2147483001;top:0;right:0;width:min(420px,calc(100vw - 24px));height:100vh;box-sizing:border-box;background:#0d1117;color:#e6edf3;border-left:1px solid #30363d;box-shadow:-16px 0 48px rgba(0,0,0,.35);padding:20px;overflow:auto;transform:translateX(105%);transition:transform .18s ease;font:14px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.dc-annotation-panel.is-open{transform:translateX(0)}",
       ".dc-annotation-panel-close{position:absolute;top:12px;right:12px;border:1px solid #30363d;border-radius:6px;background:#161b22;color:#e6edf3;font-size:22px;line-height:1;width:34px;height:34px}.dc-annotation-panel h2{font-size:18px;margin:0 42px 12px 0}.dc-annotation-panel blockquote{margin:0 0 16px;padding:10px 12px;border-left:3px solid #58a6ff;background:#161b22;color:#c9d1d9}",
       ".dc-annotation-comment{border:1px solid #30363d;border-radius:8px;background:#010409;margin:12px 0;overflow:hidden}.dc-annotation-comment header{display:flex;align-items:center;gap:8px;border-bottom:1px solid #30363d;background:#161b22;padding:9px 11px}.dc-annotation-comment time{color:#8b949e}.dc-annotation-body{padding:11px}.dc-annotation-body img{max-width:100%;height:auto;border-radius:6px}.dc-annotation-body a{color:#58a6ff;text-decoration:underline;text-underline-offset:2px}.dc-annotation-pending{border:1px solid rgba(210,153,34,.55);border-radius:999px;color:#d29922;padding:1px 7px;font-size:12px;font-weight:700}",
+      ".dc-annotation-panel-reply{border-top:1px solid #30363d;margin-top:16px;padding-top:16px}.dc-annotation-reply-form{display:block}.dc-annotation-reply-form .dc-annotation-title{font-weight:800;font-size:15px;margin-bottom:8px}",
       ".dc-annotation-toast{position:fixed;z-index:2147483002;left:50%;bottom:24px;transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:min(520px,calc(100vw - 32px));border-radius:8px;padding:11px 14px;background:#161b22;color:#e6edf3;border:1px solid #30363d;box-shadow:0 12px 32px rgba(0,0,0,.3);transition:opacity .16s ease,transform .16s ease;font:14px/1.45 ui-sans-serif,system-ui}.dc-annotation-toast.is-visible{opacity:1;transform:translate(-50%,0)}.dc-annotation-toast.is-success{border-color:#2ea043;color:#3fb950}.dc-annotation-toast.is-warning{border-color:#bb8009;color:#d29922}",
       "@media(max-width:640px){.dc-annotation-grid,.dc-annotation-hints{grid-template-columns:1fr}.dc-annotation-popover{position:fixed!important;left:12px!important;right:12px!important;top:auto!important;bottom:12px!important;width:auto!important;max-height:calc(100vh - 24px);overflow:auto}.dc-annotation-panel{width:100vw}}",
-      "@media(prefers-color-scheme:light){.dc-annotation-popover,.dc-annotation-panel{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-popover input,.dc-annotation-popover textarea,.dc-annotation-comment{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-comment header,.dc-annotation-panel blockquote{background:#f6f8fa;border-color:#d0d7de}.dc-annotation-popover label,.dc-annotation-hints,.dc-annotation-comment time{color:#57606a}.dc-annotation-submit{background:#1f883d}.dc-annotation-panel-close{background:#f6f8fa;color:#24292f;border-color:#d0d7de}.dc-annotation-body a{color:#0969da}}"
+      "@media(prefers-color-scheme:light){.dc-annotation-popover,.dc-annotation-panel{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-popover input,.dc-annotation-popover textarea,.dc-annotation-reply-form input,.dc-annotation-reply-form textarea,.dc-annotation-comment{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-comment header,.dc-annotation-panel blockquote{background:#f6f8fa;border-color:#d0d7de}.dc-annotation-popover label,.dc-annotation-reply-form label,.dc-annotation-hints,.dc-annotation-comment time{color:#57606a}.dc-annotation-submit{background:#1f883d}.dc-annotation-panel-close{background:#f6f8fa;color:#24292f;border-color:#d0d7de}.dc-annotation-body a{color:#0969da}}"
     ].join("");
     document.head.appendChild(style);
   }
