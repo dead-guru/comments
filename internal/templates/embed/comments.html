@@ -68,6 +68,119 @@
     function applyProfileToAllForms() {
       document.querySelectorAll(".dc-form").forEach(applyProfile);
     }
+    function text(value) {
+      return document.createTextNode(value || "");
+    }
+    function safeURL(raw) {
+      try {
+        var parsed = new URL(raw || "");
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.toString();
+      } catch (_) {}
+      return "";
+    }
+    function authorName(comment) {
+      return comment.author_display_name || comment.author_name || "Anonymous";
+    }
+    function renderComment(comment, root) {
+      var article = document.createElement("article");
+      article.className = "dc-comment" + (root ? "" : " is-reply");
+      article.dataset.commentId = comment.id;
+
+      var header = document.createElement("header");
+      header.className = "dc-head";
+      var author = document.createElement("span");
+      author.className = "dc-author";
+      var website = safeURL(comment.author_website);
+      if (website) {
+        var link = document.createElement("a");
+        link.className = "dc-author-link";
+        link.href = website;
+        link.target = "_blank";
+        link.rel = "nofollow ugc noopener noreferrer";
+        link.appendChild(text(authorName(comment)));
+        author.appendChild(link);
+      } else {
+        author.appendChild(text(authorName(comment)));
+      }
+      if (comment.tripcode_kind === "anonymous" && comment.tripcode_public) {
+        var tripcode = document.createElement("span");
+        tripcode.className = "dc-tripcode";
+        tripcode.appendChild(text("◆" + comment.tripcode_public));
+        author.appendChild(tripcode);
+      }
+      if (comment.tripcode_kind === "reserved" && comment.badge_type) {
+        var badge = document.createElement("span");
+        badge.className = "dc-badge dc-badge-" + comment.badge_type;
+        badge.appendChild(text(comment.badge_label || comment.badge_type));
+        author.appendChild(badge);
+      }
+      header.appendChild(author);
+      var time = document.createElement("time");
+      time.className = "dc-time";
+      time.appendChild(text(comment.created_at || ""));
+      header.appendChild(time);
+      if (comment.replying_to_author) {
+        var replying = document.createElement("span");
+        replying.className = "dc-replying";
+        replying.appendChild(text("replying to @" + comment.replying_to_author));
+        header.appendChild(replying);
+      }
+      article.appendChild(header);
+
+      var body = document.createElement("div");
+      body.className = "dc-body";
+      body.innerHTML = comment.body_html || "";
+      article.appendChild(body);
+
+      var actions = document.createElement("div");
+      actions.className = "dc-actions";
+      var reply = document.createElement("button");
+      reply.className = "dc-btn";
+      reply.type = "button";
+      reply.dataset.replyTo = comment.id;
+      reply.appendChild(text("Reply"));
+      actions.appendChild(reply);
+      article.appendChild(actions);
+      return article;
+    }
+    function ensureThread() {
+      var thread = document.querySelector(".dc-thread");
+      if (thread) return thread;
+      var empty = document.querySelector(".dc-empty");
+      thread = document.createElement("section");
+      thread.className = "dc-thread";
+      if (empty) {
+        empty.replaceWith(thread);
+      } else {
+        document.querySelector(".dc-title").after(thread);
+      }
+      return thread;
+    }
+    function appendSubmittedComment(comment, parentID) {
+      if (!comment || !comment.id) return;
+      var thread = ensureThread();
+      var node = renderComment(comment, !parentID);
+      if (!parentID) {
+        thread.appendChild(node);
+        return;
+      }
+      var parent = document.querySelector('[data-comment-id="' + CSS.escape(parentID) + '"]');
+      if (parent) {
+        parent.after(node);
+      } else {
+        thread.appendChild(node);
+      }
+    }
+    function showFormMessage(form, ok, message) {
+      var old = form.parentElement.querySelector(".dc-form-message");
+      if (old) old.remove();
+      var msg = document.createElement("div");
+      msg.className = "dc-form-message " + (ok ? "dc-message" : "dc-error");
+      msg.appendChild(text(message));
+      form.before(msg);
+      sendHeight();
+      if (ok) window.setTimeout(function () { msg.remove(); sendHeight(); }, 3500);
+    }
     function showReplyForm(id) {
       var old = document.querySelector(".dc-form.reply");
       if (old) old.remove();
@@ -96,17 +209,18 @@
       payload.page_title = wrap.dataset.title || "";
       payload.page_url = wrap.dataset.url || "";
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments";
+      var button = form.querySelector("button[type='submit'], .dc-btn.primary");
+      if (button) button.disabled = true;
       var res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
-      var msg = document.createElement("div");
-      msg.className = res.ok ? "dc-message" : "dc-error";
       var data = {};
       try { data = await res.json(); } catch (_) {}
-      if (res.ok && data.status === "approved") {
-        window.location.reload();
+      if (button) button.disabled = false;
+      if (!res.ok) {
+        showFormMessage(form, false, data.error || "Unable to submit comment.");
         return;
       }
-      msg.textContent = data.message || data.error || "Unable to submit comment.";
-      form.replaceWith(msg);
+      if (data.status === "approved") appendSubmittedComment(data.comment, payload.parent_id);
+      showFormMessage(form, true, data.message || "Comment submitted.");
       sendHeight();
     });
     applyProfileToAllForms();

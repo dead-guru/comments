@@ -47,6 +47,7 @@ type PublicComment struct {
 	ParentID          *string          `json:"parent_id"`
 	AuthorName        string           `json:"author_name"`
 	AuthorDisplayName string           `json:"author_display_name"`
+	AuthorWebsite     *string          `json:"author_website"`
 	TripcodePublic    *string          `json:"tripcode_public"`
 	TripcodeKind      TripcodeKind     `json:"tripcode_kind"`
 	BadgeType         *BadgeType       `json:"badge_type"`

@@ -80,6 +80,7 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 		"status":  comment.Status,
 		"message": createMessage(comment.Status),
 		"reason":  reason,
+		"comment": toPublicComment(comment),
 	}, http.StatusCreated)
 }
 
@@ -113,24 +114,31 @@ func statusForCreateError(err error) int {
 func toPublicComments(comments []*domain.Comment) []*domain.PublicComment {
 	out := make([]*domain.PublicComment, 0, len(comments))
 	for _, c := range comments {
-		pc := &domain.PublicComment{
-			ID:                c.ID,
-			ParentID:          c.ParentID,
-			AuthorName:        c.AuthorName,
-			AuthorDisplayName: c.AuthorDisplayName,
-			TripcodePublic:    c.TripcodePublic,
-			TripcodeKind:      c.TripcodeKind,
-			BadgeType:         c.BadgeType,
-			BadgeLabel:        c.BadgeLabel,
-			BodyHTML:          c.BodyHTML,
-			CreatedAt:         c.CreatedAt,
-			EditedAt:          c.EditedAt,
-			ReplyingToAuthor:  c.ReplyingToAuthor,
-			Children:          toPublicComments(c.Children),
-		}
-		out = append(out, pc)
+		out = append(out, toPublicComment(c))
 	}
 	return out
+}
+
+func toPublicComment(c *domain.Comment) *domain.PublicComment {
+	if c == nil {
+		return nil
+	}
+	return &domain.PublicComment{
+		ID:                c.ID,
+		ParentID:          c.ParentID,
+		AuthorName:        c.AuthorName,
+		AuthorDisplayName: c.AuthorDisplayName,
+		AuthorWebsite:     c.AuthorWebsite,
+		TripcodePublic:    c.TripcodePublic,
+		TripcodeKind:      c.TripcodeKind,
+		BadgeType:         c.BadgeType,
+		BadgeLabel:        c.BadgeLabel,
+		BodyHTML:          c.BodyHTML,
+		CreatedAt:         c.CreatedAt,
+		EditedAt:          c.EditedAt,
+		ReplyingToAuthor:  c.ReplyingToAuthor,
+		Children:          toPublicComments(c.Children),
+	}
 }
 
 func writeJSON(w http.ResponseWriter, v any, status int) {
