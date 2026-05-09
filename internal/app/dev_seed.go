@@ -14,12 +14,12 @@ func SeedDevelopment(ctx context.Context, database *sql.DB, cfg Config) error {
 		return nil
 	}
 	sites := repository.NewSiteRepository(database)
-	count, err := sites.Count(ctx)
-	if err != nil || count > 0 {
+	siteSvc := service.NewSiteService(sites)
+	site, err := sites.ByKey(ctx, "docs-demo")
+	if err != nil {
 		return err
 	}
-	siteSvc := service.NewSiteService(sites)
-	return siteSvc.Create(ctx, &domain.Site{
+	demo := &domain.Site{
 		Key:                   "docs-demo",
 		Name:                  "Docusaurus Demo",
 		AllowedOrigins:        []string{"http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"},
@@ -28,5 +28,10 @@ func SeedDevelopment(ctx context.Context, database *sql.DB, cfg Config) error {
 		DefaultTheme:          domain.ThemeAuto,
 		MaxCommentLength:      5000,
 		AllowReplies:          true,
-	})
+	}
+	if site == nil {
+		return siteSvc.Create(ctx, demo)
+	}
+	demo.ID = site.ID
+	return siteSvc.Update(ctx, demo)
 }

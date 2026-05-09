@@ -44,6 +44,8 @@ TRIPCODE_SECRET="$(openssl rand -hex 32)"
 
 Only logins listed in `GITHUB_ALLOWED_LOGINS` can access `/admin`.
 
+For Docker Compose, copy `.env.example` to `.env` and fill in the same values. GitHub OAuth uses the client ID and client secret; a GitHub App ID is not required by deadcomments.
+
 ## Environment
 
 | Variable | Default | Purpose |
@@ -122,6 +124,8 @@ export GITHUB_CLIENT_SECRET=...
 export GITHUB_ALLOWED_LOGINS=your-github-login
 docker compose up --build
 ```
+
+Or create a local `.env` from `.env.example`; Docker Compose will load it automatically. Never commit real OAuth secrets.
 
 ## Admin
 
