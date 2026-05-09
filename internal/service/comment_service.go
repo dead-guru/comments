@@ -214,6 +214,10 @@ func (s *CommentService) AdminList(ctx context.Context, status, search string, s
 	return s.comments.List(ctx, status, search, siteID, pageID, limit)
 }
 
+func (s *CommentService) AdminListFiltered(ctx context.Context, filter repository.CommentListFilter) ([]*domain.Comment, error) {
+	return s.comments.ListFiltered(ctx, filter)
+}
+
 func (s *CommentService) ByID(ctx context.Context, id string) (*domain.Comment, error) {
 	return s.comments.ByID(ctx, id)
 }

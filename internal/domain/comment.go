@@ -22,7 +22,11 @@ const (
 type Comment struct {
 	ID                string
 	SiteID            int64
+	SiteKey           string
 	PageID            int64
+	PageKey           string
+	PageTitle         string
+	PageURL           string
 	ParentID          *string
 	RootID            *string
 	Depth             int

@@ -39,6 +39,10 @@ h2 { font-size: 18px; margin: 24px 0 12px; }
   border-color: #fecdca;
   background: #fffbfa;
 }
+.notice.success {
+  border-color: #abefc6;
+  background: #ecfdf3;
+}
 table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 th { background: #f2f4f7; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
@@ -63,13 +67,30 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   margin-bottom: 0;
 }
 .bulk-toolbar select { width: auto; min-width: 140px; }
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
 .comments-table .check-cell { width: 38px; text-align: center; }
 .comments-table tbody tr.is-current { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: -2px; background: #f8fbff; }
 .comment-excerpt {
   max-width: 420px;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+.comment-preview {
+  max-height: 4.2em;
+  overflow: hidden;
+  color: var(--text);
+}
+.comment-preview > :first-child { margin-top: 0; }
+.comment-preview > :last-child { margin-bottom: 0; }
+.comment-preview a { word-break: break-all; }
+.comment-preview pre,
+.comment-preview blockquote {
+  margin: 0;
+  white-space: pre-wrap;
 }
 .row-actions {
   min-width: 260px;
@@ -93,4 +114,22 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .status-spam, .status-rejected, .status-deleted { color: var(--danger); }
 .comment-body { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: #fff; }
 pre.snippet { white-space: pre-wrap; background: #f2f4f7; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
-@media (max-width: 800px) { .grid { grid-template-columns: 1fr 1fr; } .shell { padding: 16px; } table { display: block; overflow-x: auto; } }
+.confirm-dialog {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.confirm-dialog::backdrop { background: rgba(17, 24, 39, .42); }
+.confirm-card {
+  width: min(460px, calc(100vw - 32px));
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  background: var(--panel);
+  box-shadow: 0 24px 60px rgba(17, 24, 39, .2);
+}
+.confirm-card h2 { margin: 0; }
+.confirm-card p { margin: 0; color: var(--muted); }
+@media (max-width: 800px) { .grid, .filters { grid-template-columns: 1fr 1fr; } .shell { padding: 16px; } table { display: block; overflow-x: auto; } }

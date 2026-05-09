@@ -1,12 +1,15 @@
 {{template "admin_head" .}}
 <h1>Comments {{if .Status}}<span class="muted">{{.Status}}</span>{{end}}</h1>
 <form class="panel actions" method="get" action="/admin/comments">
-  <input name="q" placeholder="Search body or author">
+  <input name="q" value="{{.Filters.Get "q"}}" placeholder="Search body or author">
   <select name="status">
     <option value="">Any status</option>
-    <option value="pending">pending</option><option value="approved">approved</option><option value="rejected">rejected</option><option value="spam">spam</option><option value="deleted">deleted</option>
+    <option value="pending" {{if eq (.Filters.Get "status") "pending"}}selected{{end}}>pending</option><option value="approved" {{if eq (.Filters.Get "status") "approved"}}selected{{end}}>approved</option><option value="rejected" {{if eq (.Filters.Get "status") "rejected"}}selected{{end}}>rejected</option><option value="spam" {{if eq (.Filters.Get "status") "spam"}}selected{{end}}>spam</option><option value="deleted" {{if eq (.Filters.Get "status") "deleted"}}selected{{end}}>deleted</option>
   </select>
+  <input name="ip_hash" value="{{.Filters.Get "ip_hash"}}" placeholder="IP hash">
+  <input name="ua_hash" value="{{.Filters.Get "ua_hash"}}" placeholder="User-agent hash">
   <button>Filter</button>
+  <a class="button" href="/admin/comments">Clear</a>
 </form>
 <p class="muted keyboard-help">Shortcuts: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>a</kbd> approve, <kbd>s</kbd> spam, <kbd>r</kbd> reject.</p>
 {{template "comments_table" dict "Comments" .Comments "CSRFToken" .CSRFToken "Bulk" true "Inline" true "ReturnTo" .CurrentPath}}

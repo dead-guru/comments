@@ -4,8 +4,9 @@
   <p><strong>Status:</strong> <span class="status-{{.Comment.Status}}">{{.Comment.Status}}</span></p>
   <p><strong>Identity:</strong> {{.Comment.TripcodeKind}}{{if .Comment.TripcodePublic}} · ◆{{.Comment.TripcodePublic}}{{end}}{{if .Comment.IdentityID}} · reserved #{{.Comment.IdentityID}}{{end}}</p>
   <p><strong>Created:</strong> {{.Comment.CreatedAt}}</p>
-  <p><strong>IP hash:</strong> {{if .Comment.IPHash}}{{.Comment.IPHash}}{{else}}<span class="muted">none</span>{{end}}</p>
-  <p><strong>User-agent hash:</strong> {{if .Comment.UserAgentHash}}{{.Comment.UserAgentHash}}{{else}}<span class="muted">none</span>{{end}}</p>
+  <p><strong>Page:</strong> <a href="/admin/pages/{{.Comment.PageID}}">{{if .Comment.PageTitle}}{{.Comment.PageTitle}}{{else}}{{.Comment.PageKey}}{{end}}</a> <span class="muted"><code>{{.Comment.PageKey}}</code></span></p>
+  <p><strong>IP hash:</strong> {{if .Comment.IPHash}}<code>{{.Comment.IPHash}}</code> <a href="/admin/comments?ip_hash={{.Comment.IPHash}}">View matching comments</a>{{else}}<span class="muted">none</span>{{end}}</p>
+  <p><strong>User-agent hash:</strong> {{if .Comment.UserAgentHash}}<code>{{.Comment.UserAgentHash}}</code> <a href="/admin/comments?ua_hash={{.Comment.UserAgentHash}}">View matching comments</a>{{else}}<span class="muted">none</span>{{end}}</p>
   <div class="actions">
     {{template "comment_actions" .}}
   </div>

@@ -48,25 +48,51 @@ func (r *CommentRepository) ByPage(ctx context.Context, pageID int64) ([]*domain
 	return r.list(ctx, `WHERE comments.page_id=? ORDER BY comments.created_at DESC`, pageID)
 }
 
+type CommentListFilter struct {
+	Status        string
+	Search        string
+	SiteID        *int64
+	PageID        *int64
+	IPHash        string
+	UserAgentHash string
+	Limit         int
+}
+
 func (r *CommentRepository) List(ctx context.Context, status, search string, siteID, pageID *int64, limit int) ([]*domain.Comment, error) {
+	return r.ListFiltered(ctx, CommentListFilter{Status: status, Search: search, SiteID: siteID, PageID: pageID, Limit: limit})
+}
+
+func (r *CommentRepository) ListFiltered(ctx context.Context, filter CommentListFilter) ([]*domain.Comment, error) {
 	q := `WHERE 1=1`
 	args := []any{}
-	if status != "" {
+	if filter.Status != "" {
 		q += ` AND comments.status=?`
-		args = append(args, status)
+		args = append(args, filter.Status)
 	}
-	if siteID != nil {
+	if filter.SiteID != nil {
 		q += ` AND comments.site_id=?`
-		args = append(args, *siteID)
+		args = append(args, *filter.SiteID)
 	}
-	if pageID != nil {
+	if filter.PageID != nil {
 		q += ` AND comments.page_id=?`
-		args = append(args, *pageID)
+		args = append(args, *filter.PageID)
 	}
-	if search != "" {
+	if filter.IPHash != "" {
+		q += ` AND comments.ip_hash=?`
+		args = append(args, filter.IPHash)
+	}
+	if filter.UserAgentHash != "" {
+		q += ` AND comments.user_agent_hash=?`
+		args = append(args, filter.UserAgentHash)
+	}
+	if filter.Search != "" {
 		q += ` AND (comments.body_markdown LIKE ? OR comments.author_name LIKE ? OR comments.author_display_name LIKE ?)`
-		like := "%" + search + "%"
+		like := "%" + filter.Search + "%"
 		args = append(args, like, like, like)
+	}
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 200
 	}
 	q += ` ORDER BY comments.created_at DESC LIMIT ?`
 	args = append(args, limit)
@@ -152,15 +178,19 @@ func publicCommentOrder(sort domain.CommentSort) string {
 
 func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, error) {
 	var c domain.Comment
-	var parent, root, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, moderationReason, edited, badgeType, badgeLabel sql.NullString
+	var parent, root, siteKey, pageKey, pageTitle, pageURL, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, moderationReason, edited, badgeType, badgeLabel sql.NullString
 	var identityID sql.NullInt64
 	var created, updated string
-	if err := scanner.Scan(&c.ID, &c.SiteID, &c.PageID, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &created, &updated, &edited); err != nil {
+	if err := scanner.Scan(&c.ID, &c.SiteID, &siteKey, &c.PageID, &pageKey, &pageTitle, &pageURL, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &created, &updated, &edited); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
+	c.SiteKey = siteKey.String
+	c.PageKey = pageKey.String
+	c.PageTitle = pageTitle.String
+	c.PageURL = pageURL.String
 	c.ParentID = nullableString(parent)
 	c.RootID = nullableString(root)
 	c.AuthorDisplayName = c.AuthorName
@@ -191,7 +221,7 @@ func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, erro
 }
 
 const commentSelectSQL = `
-	SELECT comments.id, comments.site_id, comments.page_id, comments.parent_id, comments.root_id, comments.depth, comments.path,
+	SELECT comments.id, comments.site_id, sites.key, comments.page_id, pages.page_key, COALESCE(pages.title, ''), COALESCE(pages.url, ''), comments.parent_id, comments.root_id, comments.depth, comments.path,
 		comments.author_name,
 		COALESCE(comments.author_display_name, comments.author_name) AS author_display_name,
 		comments.identity_id,
@@ -221,6 +251,8 @@ const commentSelectSQL = `
 		comments.updated_at,
 		comments.edited_at
 	FROM comments
+	LEFT JOIN sites ON sites.id = comments.site_id
+	LEFT JOIN pages ON pages.id = comments.page_id
 	LEFT JOIN identities ON identities.id = comments.identity_id
 	LEFT JOIN comments root_comments ON root_comments.id = COALESCE(comments.root_id, comments.id)`
 

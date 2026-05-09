@@ -3,6 +3,7 @@ package admin
 import (
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -61,12 +62,12 @@ func (h *Handlers) GitHubStart(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GitHubCallback(w http.ResponseWriter, r *http.Request) {
 	stateCookie, err := r.Cookie("dc_oauth_state")
 	if err != nil || !dcauth.ConstantTimeEqual(stateCookie.Value, r.URL.Query().Get("state")) {
-		http.Error(w, "invalid oauth state", http.StatusForbidden)
+		http.Redirect(w, r, "/admin/login?error="+url.QueryEscape("Login expired. Try again."), http.StatusFound)
 		return
 	}
 	_, token, err := h.auth.CompleteGitHubLogin(r.Context(), r.URL.Query().Get("code"))
 	if err != nil {
-		http.Error(w, "GitHub login is not allowed.", http.StatusForbidden)
+		http.Redirect(w, r, "/admin/login?error="+url.QueryEscape("GitHub login is not allowed."), http.StatusFound)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: middleware.SessionCookieName, Value: token, Path: "/admin", HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode, Expires: time.Now().Add(30 * 24 * time.Hour)})
@@ -103,6 +104,8 @@ func (h *Handlers) render(w http.ResponseWriter, r *http.Request, name string, d
 	data["CSRFToken"] = h.csrf.Token(w, r)
 	data["Admin"] = middleware.AdminFromContext(r.Context())
 	data["CurrentPath"] = r.URL.RequestURI()
+	data["Flash"] = r.URL.Query().Get("flash")
+	data["Error"] = r.URL.Query().Get("error")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	name = strings.TrimPrefix(name, "admin/")
 	if err := h.tmpl.ExecuteTemplate(w, name, data); err != nil {

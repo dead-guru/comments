@@ -29,6 +29,7 @@
   <span class="muted" data-bulk-count>0 selected</span>
   <select name="action" aria-label="Bulk action">
     <option value="approve">Approve</option>
+    <option value="restore">Restore</option>
     <option value="reject">Reject</option>
     <option value="spam">Spam</option>
     <option value="delete">Delete</option>
@@ -40,7 +41,7 @@
   <thead>
     <tr>
       {{if .Bulk}}<th class="check-cell"><input type="checkbox" data-bulk-toggle aria-label="Select all comments"></th>{{end}}
-      <th>Author</th><th>Status</th><th>Reason</th><th>Body</th><th>Created</th><th></th>
+      <th>Author</th><th>Page</th><th>Status</th><th>Reason</th><th>Body</th><th>Created</th><th></th>
     </tr>
   </thead>
   <tbody>
@@ -48,21 +49,22 @@
     <tr data-moderation-row tabindex="-1">
       {{if $.Bulk}}<td class="check-cell"><input type="checkbox" name="comment_id" value="{{.ID}}" form="comments-bulk-form" data-bulk-checkbox aria-label="Select comment by {{if .AuthorDisplayName}}{{.AuthorDisplayName}}{{else}}{{.AuthorName}}{{end}}"></td>{{end}}
       <td>{{if .AuthorDisplayName}}{{.AuthorDisplayName}}{{else}}{{.AuthorName}}{{end}}{{if .TripcodePublic}} <span class="muted">◆{{.TripcodePublic}}</span>{{end}}</td>
+      <td><a href="/admin/pages/{{.PageID}}">{{if .PageTitle}}{{.PageTitle}}{{else}}{{.PageKey}}{{end}}</a><div class="muted"><code>{{.PageKey}}</code></div></td>
       <td class="status-{{.Status}}">{{.Status}}</td>
       <td class="muted">{{if .ModerationReason}}{{.ModerationReason}}{{end}}</td>
-      <td class="comment-excerpt">{{.BodyMarkdown}}</td>
+      <td class="comment-excerpt" title="{{.BodyMarkdown}}"><div class="comment-preview">{{safeHTML .BodyHTML}}</div></td>
       <td>{{.CreatedAt}}</td>
       <td class="row-actions">
         <a href="/admin/comments/{{.ID}}">Open</a>
         {{if $.Inline}}
-        <form method="post" action="/admin/comments/{{.ID}}/approve"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="approve" title="Shortcut: a">Approve</button></form>
+        <form method="post" action="/admin/comments/{{.ID}}/approve"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="approve" title="Shortcut: a">{{if eq .Status "deleted"}}Restore{{else}}Approve{{end}}</button></form>
         <form method="post" action="/admin/comments/{{.ID}}/spam"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="spam" title="Shortcut: s">Spam</button></form>
         <form method="post" action="/admin/comments/{{.ID}}/reject"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="redirect_to" value="{{$.ReturnTo}}"><button class="compact" data-action="reject" title="Shortcut: r">Reject</button></form>
         {{end}}
       </td>
     </tr>
     {{else}}
-    <tr><td colspan="{{if .Bulk}}7{{else}}6{{end}}" class="muted">No comments.</td></tr>
+    <tr><td colspan="{{if .Bulk}}8{{else}}7{{end}}" class="muted">No comments.</td></tr>
     {{end}}
   </tbody>
 </table>
@@ -72,7 +74,7 @@
 <form method="post" action="/admin/comments/{{.Comment.ID}}/approve"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Approve</button></form>
 <form method="post" action="/admin/comments/{{.Comment.ID}}/reject"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Reject</button></form>
 <form method="post" action="/admin/comments/{{.Comment.ID}}/spam"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Spam</button></form>
-<form method="post" action="/admin/comments/{{.Comment.ID}}/delete" data-confirm="Delete this comment?"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="danger">Delete</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/delete" data-confirm="Delete this comment by {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}?" data-confirm-token="DELETE"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="danger">Delete</button></form>
 {{end}}
 
 {{define "events_table"}}

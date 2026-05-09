@@ -12,6 +12,16 @@ type EventRepository struct {
 	db *sql.DB
 }
 
+type EventFilter struct {
+	Type          string
+	ActorAdminID  *int64
+	AggregateType string
+	AggregateID   string
+	From          string
+	To            string
+	Limit         int
+}
+
 func NewEventRepository(db *sql.DB) *EventRepository {
 	return &EventRepository{db: db}
 }
@@ -62,14 +72,46 @@ func (r *EventRepository) MarkDelivery(ctx context.Context, eventID, handlerKey 
 }
 
 func (r *EventRepository) List(ctx context.Context, limit int) ([]domain.Event, error) {
+	return r.ListFiltered(ctx, EventFilter{Limit: limit})
+}
+
+func (r *EventRepository) ListFiltered(ctx context.Context, filter EventFilter) ([]domain.Event, error) {
+	limit := filter.Limit
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	rows, err := r.db.QueryContext(ctx, `
+	query := `
 		SELECT id, type, actor_admin_id, site_id, page_id, comment_id, aggregate_type, aggregate_id, payload_json, occurred_at
 		FROM events
-		ORDER BY occurred_at DESC
-		LIMIT ?`, limit)
+		WHERE 1=1`
+	args := []any{}
+	if filter.Type != "" {
+		query += ` AND type=?`
+		args = append(args, filter.Type)
+	}
+	if filter.ActorAdminID != nil {
+		query += ` AND actor_admin_id=?`
+		args = append(args, *filter.ActorAdminID)
+	}
+	if filter.AggregateType != "" {
+		query += ` AND aggregate_type=?`
+		args = append(args, filter.AggregateType)
+	}
+	if filter.AggregateID != "" {
+		query += ` AND aggregate_id=?`
+		args = append(args, filter.AggregateID)
+	}
+	if filter.From != "" {
+		query += ` AND occurred_at >= ?`
+		args = append(args, filter.From)
+	}
+	if filter.To != "" {
+		query += ` AND occurred_at <= ?`
+		args = append(args, filter.To)
+	}
+	query += ` ORDER BY occurred_at DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -3,18 +3,24 @@ package admin
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"deadcomments/internal/domain"
 	"deadcomments/internal/http/middleware"
+	"deadcomments/internal/repository"
 )
 
 func (h *Handlers) Comments(w http.ResponseWriter, r *http.Request) {
-	status := r.URL.Query().Get("status")
-	comments, _ := h.comments.AdminList(r.Context(), status, r.URL.Query().Get("q"), nil, nil, 200)
-	h.render(w, r, "admin/comments_queue.html", map[string]any{"Comments": comments, "Status": status})
+	filter := commentListFilterFromRequest(r)
+	comments, _ := h.comments.AdminListFiltered(r.Context(), filter)
+	h.render(w, r, "admin/comments_queue.html", map[string]any{
+		"Comments": comments,
+		"Status":   filter.Status,
+		"Filters":  r.URL.Query(),
+	})
 }
 
 func (h *Handlers) PendingComments(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +67,29 @@ func (h *Handlers) BulkComments(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = h.comments.SetStatus(r.Context(), id, status)
 	}
-	redirectAdmin(w, r, "/admin/comments")
+	redirectAdminFlash(w, r, "/admin/comments", moderationFlash(status))
+}
+
+func commentListFilterFromRequest(r *http.Request) repository.CommentListFilter {
+	q := r.URL.Query()
+	filter := repository.CommentListFilter{
+		Status:        strings.TrimSpace(q.Get("status")),
+		Search:        strings.TrimSpace(q.Get("q")),
+		IPHash:        strings.TrimSpace(q.Get("ip_hash")),
+		UserAgentHash: strings.TrimSpace(q.Get("ua_hash")),
+		Limit:         200,
+	}
+	if raw := strings.TrimSpace(q.Get("site_id")); raw != "" {
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			filter.SiteID = &id
+		}
+	}
+	if raw := strings.TrimSpace(q.Get("page_id")); raw != "" {
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			filter.PageID = &id
+		}
+	}
+	return filter
 }
 
 func (h *Handlers) EditComment(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +111,7 @@ func (h *Handlers) BanIP(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) setCommentStatus(w http.ResponseWriter, r *http.Request, status domain.CommentStatus) {
 	id := chiID(r)
 	_ = h.comments.SetStatus(r.Context(), id, status)
-	redirectAdmin(w, r, "/admin/comments/"+id)
+	redirectAdminFlash(w, r, "/admin/comments/"+id, moderationFlash(status))
 }
 
 func chiID(r *http.Request) string {
@@ -92,7 +120,7 @@ func chiID(r *http.Request) string {
 
 func statusFromModerationAction(action string) (domain.CommentStatus, bool) {
 	switch action {
-	case "approve":
+	case "approve", "restore":
 		return domain.CommentApproved, true
 	case "reject":
 		return domain.CommentRejected, true
@@ -106,9 +134,16 @@ func statusFromModerationAction(action string) (domain.CommentStatus, bool) {
 }
 
 func redirectAdmin(w http.ResponseWriter, r *http.Request, fallback string) {
+	redirectAdminFlash(w, r, fallback, "")
+}
+
+func redirectAdminFlash(w http.ResponseWriter, r *http.Request, fallback string, flash string) {
 	target := safeAdminRedirect(r.FormValue("redirect_to"))
 	if target == "" {
 		target = fallback
+	}
+	if flash != "" {
+		target = appendQuery(target, "flash", flash)
 	}
 	http.Redirect(w, r, target, http.StatusFound)
 }
@@ -123,4 +158,30 @@ func safeAdminRedirect(raw string) string {
 		return ""
 	}
 	return u.RequestURI()
+}
+
+func appendQuery(raw, key, value string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	q := u.Query()
+	q.Set(key, value)
+	u.RawQuery = q.Encode()
+	return u.RequestURI()
+}
+
+func moderationFlash(status domain.CommentStatus) string {
+	switch status {
+	case domain.CommentApproved:
+		return "Comment approved."
+	case domain.CommentRejected:
+		return "Comment rejected."
+	case domain.CommentSpam:
+		return "Comment marked as spam."
+	case domain.CommentDeleted:
+		return "Comment deleted."
+	default:
+		return "Comment updated."
+	}
 }

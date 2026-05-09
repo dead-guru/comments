@@ -1,6 +1,7 @@
 {{template "admin_head" .}}
 <h1>{{.Identity.DisplayName}}</h1>
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<p class="notice">Tripcode secrets are never shown after creation. To change this identity's secret, use the reset form below.</p>
 {{template "identity_form_fields" .}}
 <section class="panel">
   <h2>Reset secret</h2>
@@ -12,7 +13,7 @@
 </section>
 <section class="panel">
   <h2>Delete identity</h2>
-  <form method="post" action="/admin/identities/{{.Identity.ID}}/delete" data-confirm="Delete this reserved identity?">
+  <form method="post" action="/admin/identities/{{.Identity.ID}}/delete" data-confirm="Delete reserved identity {{.Identity.DisplayName}}?" data-confirm-token="DELETE">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <button class="danger">Delete identity</button>
   </form>

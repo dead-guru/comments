@@ -1,15 +1,54 @@
 document.addEventListener("submit", function (event) {
   var form = event.target;
-  if (form.matches("[data-confirm]") && !window.confirm(form.getAttribute("data-confirm"))) {
+  if (form.dataset.confirmed === "true") {
+    delete form.dataset.confirmed;
+    return;
+  }
+  if (form.matches("[data-confirm]")) {
     event.preventDefault();
+    openConfirm(form, form.getAttribute("data-confirm"), form.getAttribute("data-confirm-token") || "");
+    return;
   }
   if (form.id === "comments-bulk-form") {
     var action = form.querySelector('[name="action"]');
-    if (action && action.value === "delete" && !window.confirm("Delete selected comments?")) {
+    if (action && action.value === "delete") {
       event.preventDefault();
+      openConfirm(form, "Delete selected comments?", "DELETE");
     }
   }
 });
+
+function openConfirm(form, message, token) {
+  var dialog = document.createElement("dialog");
+  dialog.className = "confirm-dialog";
+  dialog.innerHTML = [
+    "<form method=\"dialog\" class=\"confirm-card\">",
+    "<h2>Confirm action</h2>",
+    "<p></p>",
+    token ? "<label class=\"field\"><span>Type " + token + " to confirm</span><input data-confirm-input autocomplete=\"off\"></label>" : "",
+    "<div class=\"actions\"><button value=\"cancel\">Cancel</button><button class=\"danger\" value=\"confirm\" data-confirm-final" + (token ? " disabled" : "") + ">Confirm</button></div>",
+    "</form>"
+  ].join("");
+  dialog.querySelector("p").textContent = message || "Are you sure?";
+  document.body.appendChild(dialog);
+  var input = dialog.querySelector("[data-confirm-input]");
+  var confirm = dialog.querySelector("[data-confirm-final]");
+  if (input) {
+    input.addEventListener("input", function () {
+      confirm.disabled = input.value !== token;
+    });
+  }
+  dialog.addEventListener("close", function () {
+    var ok = dialog.returnValue === "confirm";
+    dialog.remove();
+    if (ok) {
+      form.dataset.confirmed = "true";
+      form.requestSubmit();
+    }
+  });
+  dialog.showModal();
+  if (input) input.focus();
+}
 
 (function () {
   var table = document.querySelector("[data-moderation-table]");

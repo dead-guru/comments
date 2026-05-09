@@ -1,4 +1,14 @@
 {{template "admin_head" .}}
 <h1>Events</h1>
+<form class="panel filters" method="get" action="/admin/events">
+  <div class="field"><label>Type</label><input name="type" value="{{.Filters.Get "type"}}" placeholder="comment.status_set"></div>
+  <div class="field"><label>Actor admin ID</label><input name="actor_admin_id" value="{{.Filters.Get "actor_admin_id"}}" inputmode="numeric"></div>
+  <div class="field"><label>Aggregate type</label><input name="aggregate_type" value="{{.Filters.Get "aggregate_type"}}" placeholder="comment"></div>
+  <div class="field"><label>Aggregate ID</label><input name="aggregate_id" value="{{.Filters.Get "aggregate_id"}}"></div>
+  <div class="field"><label>From</label><input type="date" name="from" value="{{.Filters.Get "from"}}"></div>
+  <div class="field"><label>To</label><input type="date" name="to" value="{{.Filters.Get "to"}}"></div>
+  <button class="primary">Filter</button>
+  <a class="button" href="/admin/events">Clear</a>
+</form>
 {{template "events_table" .Events}}
 {{template "admin_foot" .}}

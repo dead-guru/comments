@@ -14,6 +14,9 @@ func TestCommentsQueueTemplateExecutes(t *testing.T) {
 	tmpl := mustAdminTemplate(t)
 	comment := &domain.Comment{
 		ID:                "comment-1",
+		PageID:            1,
+		PageKey:           "/post",
+		PageTitle:         "Post title",
 		AuthorName:        "Oleksii",
 		AuthorDisplayName: "Oleksii",
 		BodyMarkdown:      "Needs review",
@@ -25,6 +28,7 @@ func TestCommentsQueueTemplateExecutes(t *testing.T) {
 		"CurrentPath": "/admin/comments/pending",
 		"Status":      domain.CommentPending,
 		"Comments":    []*domain.Comment{comment},
+		"Filters":     mapValues{},
 	}
 	if err := tmpl.ExecuteTemplate(io.Discard, "comments_queue.html", data); err != nil {
 		t.Fatalf("execute comments_queue.html: %v", err)
@@ -44,6 +48,25 @@ func TestCommentsQueueTemplateExecutes(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("execute page_detail.html: %v", err)
 	}
+	if err := tmpl.ExecuteTemplate(io.Discard, "events.html", map[string]any{
+		"CSRFToken": "csrf",
+		"Events": []domain.Event{{
+			ID:            "event-1",
+			Type:          domain.EventCommentStatusSet,
+			AggregateType: "comment",
+			AggregateID:   "comment-1",
+			OccurredAt:    time.Now(),
+		}},
+		"Filters": mapValues{},
+	}); err != nil {
+		t.Fatalf("execute events.html: %v", err)
+	}
+}
+
+type mapValues map[string]string
+
+func (v mapValues) Get(key string) string {
+	return v[key]
 }
 
 func mustAdminTemplate(t *testing.T) *template.Template {

@@ -27,6 +27,8 @@
     </nav>
   </div>
   <main class="shell">
+    {{if .Flash}}<div class="notice success" role="status">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="notice error" role="alert">{{.Error}}</div>{{end}}
 {{end}}
 
 {{define "admin_foot"}}
