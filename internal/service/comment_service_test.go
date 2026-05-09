@@ -321,7 +321,7 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 		}
 	}
 
-	comments, err := deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortOldest)
+	comments, err := deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortOldest, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 		t.Fatalf("expected new root thread second with its reply, got %#v", tree[1])
 	}
 
-	comments, err = deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortNewest)
+	comments, err = deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortNewest, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +345,7 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 		t.Fatalf("expected newest root thread first, got %s then %s", tree[0].ID, tree[1].ID)
 	}
 
-	comments, err = deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortBest)
+	comments, err = deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortBest, true)
 	if err != nil {
 		t.Fatal(err)
 	}

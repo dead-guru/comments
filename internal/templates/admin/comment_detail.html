@@ -9,6 +9,7 @@
 <h1>Comment by {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</h1>
 <section class="panel">
   <p><strong>Status:</strong> <span class="status-{{.Comment.Status}}">{{.Comment.Status}}</span></p>
+  {{if .Comment.Annotation}}<p><strong>Type:</strong> <span class="annotation-badge">Annotation</span></p>{{end}}
   <p><strong>Identity:</strong> {{.Comment.TripcodeKind}}{{if .Comment.TripcodePublic}} · ◆{{.Comment.TripcodePublic}}{{end}}{{if .Comment.IdentityID}} · reserved #{{.Comment.IdentityID}}{{end}}</p>
   <p><strong>Created:</strong> {{.Comment.CreatedAt}}</p>
   <p><strong>Page:</strong> <a href="/admin/pages/{{.Comment.PageID}}">{{if .Comment.PageTitle}}{{.Comment.PageTitle}}{{else}}{{.Comment.PageKey}}{{end}}</a> <span class="muted"><code>{{.Comment.PageKey}}</code></span></p>
@@ -18,6 +19,20 @@
     {{template "comment_actions" .}}
   </div>
 </section>
+{{if .Comment.Annotation}}
+<h2>Annotation context</h2>
+<section class="panel admin-annotation-card">
+  <span class="annotation-badge">Annotation</span>
+  <blockquote>{{.Comment.Annotation.SelectedText}}</blockquote>
+  <dl class="meta-list">
+    <dt>Annotation ID</dt><dd><code>{{.Comment.Annotation.ID}}</code></dd>
+    <dt>Text hash</dt><dd><code>{{.Comment.Annotation.TextHash}}</code></dd>
+    <dt>Offsets</dt><dd>{{if .Comment.Annotation.TextStart}}{{.Comment.Annotation.TextStart}}{{else}}?{{end}} → {{if .Comment.Annotation.TextEnd}}{{.Comment.Annotation.TextEnd}}{{else}}?{{end}}</dd>
+  </dl>
+  {{if .Comment.Annotation.SelectionPrefix}}<p class="muted"><strong>Before:</strong> {{.Comment.Annotation.SelectionPrefix}}</p>{{end}}
+  {{if .Comment.Annotation.SelectionSuffix}}<p class="muted"><strong>After:</strong> {{.Comment.Annotation.SelectionSuffix}}</p>{{end}}
+</section>
+{{end}}
 <h2>Rendered body</h2>
 <div class="comment-body">{{safeHTML .Comment.BodyHTML}}</div>
 <h2>Edit markdown</h2>

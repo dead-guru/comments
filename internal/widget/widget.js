@@ -21,6 +21,7 @@
   var theme = script.getAttribute("data-theme") || "auto";
   var sort = normalizeSort(script.getAttribute("data-sort") || "oldest");
   var inputPosition = normalizeInputPosition(script.getAttribute("data-input-position") || "bottom");
+  var showAnnotations = normalizeBooleanAttribute(script.getAttribute("data-show-annotations"), true);
   var rawLocale = script.getAttribute("data-locale") || document.documentElement.lang || navigator.language || "en";
   var locale = normalizeLocale(rawLocale);
   var target = document.querySelector(targetSelector) || script.parentElement;
@@ -35,6 +36,7 @@
   src.searchParams.set("theme", theme);
   src.searchParams.set("sort", sort);
   src.searchParams.set("input_position", inputPosition);
+  src.searchParams.set("show_annotations", showAnnotations ? "true" : "false");
   src.searchParams.set("locale", locale);
   src.searchParams.set("parent_origin", window.location.origin);
   src.searchParams.set("title", document.title || "");
@@ -137,6 +139,11 @@
   }
   function normalizeInputPosition(value) {
     return String(value || "").toLowerCase() === "top" ? "top" : "bottom";
+  }
+  function normalizeBooleanAttribute(value, fallback) {
+    if (value === null || value === undefined || value === "") return fallback;
+    value = String(value).toLowerCase().trim();
+    return !(value === "0" || value === "false" || value === "no");
   }
   function loadingText(value, key) {
     var catalog = {

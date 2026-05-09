@@ -46,8 +46,16 @@ func (r *CommentRepository) ByID(ctx context.Context, id string) (*domain.Commen
 	return scanComment(row)
 }
 
-func (r *CommentRepository) ApprovedByPage(ctx context.Context, pageID int64, sort domain.CommentSort) ([]*domain.Comment, error) {
-	return r.list(ctx, `WHERE comments.page_id=? AND comments.status='approved' `+publicCommentOrder(sort), pageID)
+func (r *CommentRepository) ApprovedByPage(ctx context.Context, pageID int64, sort domain.CommentSort, includeAnnotations bool) ([]*domain.Comment, error) {
+	where := `WHERE comments.page_id=? AND comments.status='approved'`
+	if !includeAnnotations {
+		where += ` AND NOT EXISTS (
+			SELECT 1
+			FROM annotations hidden_annotations
+			WHERE hidden_annotations.comment_id = COALESCE(comments.root_id, comments.id)
+		)`
+	}
+	return r.list(ctx, where+` `+publicCommentOrder(sort), pageID)
 }
 
 func (r *CommentRepository) ByPage(ctx context.Context, pageID int64) ([]*domain.Comment, error) {

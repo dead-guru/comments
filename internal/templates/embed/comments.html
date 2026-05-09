@@ -6,14 +6,14 @@
   <link rel="stylesheet" href="/static/embed.css">
 </head>
 <body>
-  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-input-position="{{.InputPosition}}" data-locale="{{.Locale}}" data-can-reply="{{.CanReply}}">
+  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-input-position="{{.InputPosition}}" data-show-annotations="{{.ShowAnnotations}}" data-locale="{{.Locale}}" data-can-reply="{{.CanReply}}">
     {{if .Error}}
       <div class="dc-error">{{.Error}}</div>
     {{else if eq .Page.State "hidden"}}
       <div class="dc-state">{{index .T "comments_hidden"}}</div>
     {{else}}
       <div class="dc-titlebar">
-        <h2 class="dc-title">{{index .T "comments"}} <span data-comment-count {{if le .Page.ApprovedCount 0}}hidden{{end}}>{{.Page.ApprovedCount}}</span></h2>
+        <h2 class="dc-title">{{index .T "comments"}} <span data-comment-count {{if le .ApprovedCount 0}}hidden{{end}}>{{.ApprovedCount}}</span></h2>
         <div class="dc-sort" aria-label="{{index .T "sort_comments"}}">
           <button class="dc-sort-btn {{if eq .Sort "oldest"}}is-active{{end}}" type="button" data-sort="oldest">{{index .T "oldest"}}</button>
           <button class="dc-sort-btn {{if eq .Sort "newest"}}is-active{{end}}" type="button" data-sort="newest">{{index .T "newest"}}</button>
@@ -431,6 +431,7 @@
       if (options.closeReplyForm && document.querySelector(".dc-form.reply")) closeReplyForm();
       setActiveSort(sort);
       var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments?sort=" + encodeURIComponent(sort);
+      if (wrap.dataset.showAnnotations === "false") url += "&include_annotations=false";
       try {
         var res = await fetch(url, {headers: {"Accept": "application/json"}});
         var data = {};

@@ -48,6 +48,7 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 	theme := normalizeTheme(r.URL.Query().Get("theme"))
 	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
 	inputPosition := normalizeInputPosition(r.URL.Query().Get("input_position"))
+	showAnnotations := normalizeShowAnnotations(r.URL.Query().Get("show_annotations"))
 	locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
 	if siteKey == "" || pageKey == "" {
 		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_not_configured"))
@@ -63,28 +64,30 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_unavailable_origin"))
 		return
 	}
-	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort)
+	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort, showAnnotations)
 	if err != nil || page == nil {
 		h.renderEmbedError(w, locale, i18n.Text(locale, "comments_unavailable"))
 		return
 	}
 	data := map[string]any{
-		"SiteKey":       siteKey,
-		"PageKey":       pageKey,
-		"Page":          page,
-		"Comments":      comments,
-		"Theme":         theme,
-		"Locale":        locale,
-		"T":             i18n.Embed(locale),
-		"Sort":          sort,
-		"InputPosition": inputPosition,
-		"CanReply":      page.State == domain.PageOpen,
-		"ParentOrigin":  parentOrigin,
-		"EmbedToken":    h.signEmbedToken(siteKey, pageKey, parentOrigin),
-		"MaxLength":     site.MaxCommentLength,
-		"PageTitle":     r.URL.Query().Get("title"),
-		"PageURL":       r.URL.Query().Get("url"),
-		"CSPNonce":      newCSPNonce(),
+		"SiteKey":         siteKey,
+		"PageKey":         pageKey,
+		"Page":            page,
+		"Comments":        comments,
+		"ApprovedCount":   countPublicComments(comments),
+		"Theme":           theme,
+		"Locale":          locale,
+		"T":               i18n.Embed(locale),
+		"Sort":            sort,
+		"InputPosition":   inputPosition,
+		"ShowAnnotations": showAnnotations,
+		"CanReply":        page.State == domain.PageOpen,
+		"ParentOrigin":    parentOrigin,
+		"EmbedToken":      h.signEmbedToken(siteKey, pageKey, parentOrigin),
+		"MaxLength":       site.MaxCommentLength,
+		"PageTitle":       r.URL.Query().Get("title"),
+		"PageURL":         r.URL.Query().Get("url"),
+		"CSPNonce":        newCSPNonce(),
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	setEmbedCSP(w, data["CSPNonce"].(string))
@@ -135,6 +138,11 @@ func normalizeInputPosition(raw string) string {
 		return "top"
 	}
 	return "bottom"
+}
+
+func normalizeShowAnnotations(raw string) bool {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	return raw != "0" && raw != "false" && raw != "no"
 }
 
 func fileExists(path string) bool {

@@ -30,7 +30,8 @@ func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 	siteKey := chi.URLParam(r, "site_key")
 	pageKey := decodedParam(chi.URLParam(r, "page_key"))
 	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
-	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort)
+	includeAnnotations := includeAnnotationsFromRequest(r)
+	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort, includeAnnotations)
 	if err != nil || page == nil {
 		writeJSONError(w, "comments unavailable", http.StatusNotFound)
 		return
@@ -39,7 +40,7 @@ func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 	resp.Page.Key = page.PageKey
 	resp.Page.State = string(page.State)
 	resp.Sort = sort
-	resp.ApprovedCount = page.ApprovedCount
+	resp.ApprovedCount = countPublicComments(comments)
 	resp.Comments = toPublicComments(comments)
 	writeJSON(w, resp, http.StatusOK)
 }
@@ -358,4 +359,18 @@ func decodedParam(raw string) string {
 		return raw
 	}
 	return v
+}
+
+func includeAnnotationsFromRequest(r *http.Request) bool {
+	raw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("include_annotations")))
+	return raw != "0" && raw != "false" && raw != "no"
+}
+
+func countPublicComments(comments []*domain.Comment) int {
+	total := 0
+	for _, comment := range comments {
+		total++
+		total += countPublicComments(comment.Children)
+	}
+	return total
 }

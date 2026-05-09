@@ -18,6 +18,7 @@
       script.setAttribute("data-theme", node.getAttribute("data-theme") || "auto");
       script.setAttribute("data-sort", node.getAttribute("data-sort") || "oldest");
       script.setAttribute("data-input-position", node.getAttribute("data-input-position") || "bottom");
+      script.setAttribute("data-show-annotations", node.getAttribute("data-show-annotations") || "true");
       node.after(script);
     });
     document.querySelectorAll("[data-deadcomments-annotations]").forEach(function (node) {

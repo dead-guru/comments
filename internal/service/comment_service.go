@@ -207,7 +207,7 @@ func publicEmailAvatarHash(email string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string, sort domain.CommentSort) (*domain.Page, []*domain.Comment, error) {
+func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string, sort domain.CommentSort, includeAnnotations bool) (*domain.Page, []*domain.Comment, error) {
 	site, err := s.sites.ByKey(ctx, siteKey)
 	if err != nil || site == nil {
 		return nil, nil, err
@@ -219,7 +219,7 @@ func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string
 	if page.State == domain.PageHidden {
 		return page, nil, nil
 	}
-	comments, err := s.comments.ApprovedByPage(ctx, page.ID, NormalizeCommentSort(string(sort)))
+	comments, err := s.comments.ApprovedByPage(ctx, page.ID, NormalizeCommentSort(string(sort)), includeAnnotations)
 	if err != nil {
 		return nil, nil, err
 	}

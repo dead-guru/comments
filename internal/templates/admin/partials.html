@@ -52,7 +52,15 @@
       <td><a href="/admin/pages/{{.PageID}}">{{if .PageTitle}}{{.PageTitle}}{{else}}{{.PageKey}}{{end}}</a><div class="muted"><code>{{.PageKey}}</code></div></td>
       <td class="status-{{.Status}}">{{.Status}}</td>
       <td class="muted">{{if .ModerationReason}}{{.ModerationReason}}{{end}}</td>
-      <td class="comment-excerpt" title="{{.BodyMarkdown}}"><div class="comment-preview">{{safeHTML .BodyHTML}}</div></td>
+      <td class="comment-excerpt" title="{{.BodyMarkdown}}">
+        {{if .Annotation}}
+        <div class="admin-annotation-card compact">
+          <span class="annotation-badge">Annotation</span>
+          <blockquote>{{.Annotation.SelectedText}}</blockquote>
+        </div>
+        {{end}}
+        <div class="comment-preview">{{safeHTML .BodyHTML}}</div>
+      </td>
       <td>{{.CreatedAt}}</td>
       <td class="row-actions">
         <a href="/admin/comments/{{.ID}}">View / Moderate</a>

@@ -346,6 +346,23 @@ func TestAnnotationAPICreatesPublicAnnotation(t *testing.T) {
 	if commentsResp.Comments[0].Annotation.ID != created.Annotation.ID {
 		t.Fatalf("expected annotation id %q on comment, got %#v", created.Annotation.ID, commentsResp.Comments[0].Annotation)
 	}
+
+	regularOnlyReq := httptest.NewRequest(http.MethodGet, "/api/v1/sites/test-site/pages/%2Fposts%2Finline/comments?include_annotations=false", nil)
+	regularOnlyRec := httptest.NewRecorder()
+	router.ServeHTTP(regularOnlyRec, regularOnlyReq)
+	if regularOnlyRec.Code != http.StatusOK {
+		t.Fatalf("expected regular-only comments ok, got %d body=%s", regularOnlyRec.Code, regularOnlyRec.Body.String())
+	}
+	var regularOnlyResp struct {
+		ApprovedCount int                    `json:"approved_count"`
+		Comments      []domain.PublicComment `json:"comments"`
+	}
+	if err := json.Unmarshal(regularOnlyRec.Body.Bytes(), &regularOnlyResp); err != nil {
+		t.Fatal(err)
+	}
+	if regularOnlyResp.ApprovedCount != 0 || len(regularOnlyResp.Comments) != 0 {
+		t.Fatalf("expected annotations excluded from comments widget response, got %#v", regularOnlyResp)
+	}
 }
 
 func newPublicHandlerTestDeps(t *testing.T) *Handlers {

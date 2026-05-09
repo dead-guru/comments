@@ -163,6 +163,56 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   border-radius: var(--radius);
   background: var(--subtle);
 }
+.admin-annotation-card {
+  display: grid;
+  gap: 8px;
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+.admin-annotation-card.compact {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: var(--radius);
+}
+.annotation-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 999px;
+  color: var(--accent);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.admin-annotation-card blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  color: var(--muted);
+}
+.admin-annotation-card.compact blockquote {
+  max-height: 3.8em;
+  overflow: hidden;
+}
+.meta-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+}
+.meta-list dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+.meta-list dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .comment-preview pre,
 .comment-preview blockquote {
   margin: 0;

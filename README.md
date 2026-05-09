@@ -80,6 +80,7 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
   data-theme="auto"
   data-sort="oldest"
   data-input-position="bottom"
+  data-show-annotations="true"
   data-locale="en">
 </script>
 ```
@@ -91,6 +92,8 @@ Use `data-theme="inherit"` when embedding into a page whose colors should drive 
 Use `data-locale="uk"` for Ukrainian widget copy. Supported locales are `en` and `uk`; unsupported values fall back to English. If `data-locale` is omitted, the widget uses the host page `<html lang>` or browser language.
 
 Use `data-input-position="top"` to render the main comment form above the comment list. The default is `bottom`.
+
+Use `data-show-annotations="false"` when inline annotations are enabled but the bottom comments widget should show only regular page comments. The default is `true`, which keeps annotation comments visible in the page-level thread with an annotation label and quote.
 
 Use `data-sort="oldest"`, `data-sort="newest"`, or `data-sort="best"` to choose the default public comment order. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
 
