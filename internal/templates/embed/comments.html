@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/embed.css">
+</head>
+<body>
+  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}">
+    {{if .Error}}
+      <div class="dc-error">{{.Error}}</div>
+    {{else if eq .Page.State "hidden"}}
+      <div class="dc-state">Comments are hidden.</div>
+    {{else}}
+      <h2 class="dc-title">Comments</h2>
+      {{if .Comments}}
+      <section class="dc-thread">
+        {{range .Comments}}{{template "embed_comment" dict "Comment" . "Root" true "CanReply" (eq $.Page.State "open")}}{{end}}
+      </section>
+      {{else}}
+      <div class="dc-empty">No comments yet.</div>
+      {{end}}
+      {{if eq .Page.State "open"}}
+        {{template "embed_form" dict "ParentID" "" "Reply" false}}
+      {{else if eq .Page.State "locked"}}
+        <p class="dc-state">Comments are locked.</p>
+      {{else if eq .Page.State "archived"}}
+        <p class="dc-state">This discussion is archived.</p>
+      {{end}}
+    {{end}}
+  </main>
+  <script>
+  (function () {
+    function sendHeight() {
+      parent.postMessage({type: "deadcomments:height", height: document.documentElement.scrollHeight}, "*");
+    }
+    function showReplyForm(id) {
+      var old = document.querySelector(".dc-form.reply");
+      if (old) old.remove();
+      var tpl = document.getElementById("reply-template");
+      var target = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"] .dc-actions');
+      if (!tpl || !target) return;
+      var node = tpl.content.cloneNode(true);
+      node.querySelector('[name="parent_id"]').value = id;
+      target.appendChild(node);
+      sendHeight();
+    }
+    document.addEventListener("click", function (event) {
+      var btn = event.target.closest("[data-reply-to]");
+      if (btn) showReplyForm(btn.getAttribute("data-reply-to"));
+    });
+    document.addEventListener("submit", async function (event) {
+      var form = event.target.closest(".dc-form");
+      if (!form) return;
+      event.preventDefault();
+      var wrap = document.querySelector(".dc-wrap");
+      var payload = Object.fromEntries(new FormData(form).entries());
+      payload.parent_id = payload.parent_id || null;
+      payload.parent_origin = wrap.dataset.origin || "";
+      payload.page_title = wrap.dataset.title || "";
+      payload.page_url = wrap.dataset.url || "";
+      var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments";
+      var res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
+      var msg = document.createElement("div");
+      msg.className = res.ok ? "dc-message" : "dc-error";
+      var data = {};
+      try { data = await res.json(); } catch (_) {}
+      msg.textContent = data.message || data.error || "Unable to submit comment.";
+      form.replaceWith(msg);
+      sendHeight();
+    });
+    new ResizeObserver(sendHeight).observe(document.body);
+    window.addEventListener("load", sendHeight);
+    sendHeight();
+  })();
+  </script>
+  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true}}</template>
+</body>
+</html>
+
+{{define "embed_comment"}}
+<article class="dc-comment {{if not .Root}}is-reply{{end}}" data-comment-id="{{.Comment.ID}}">
+  <header class="dc-head">
+    <span class="dc-author">
+      {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}
+      {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
+      {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
+    </span>
+    <time class="dc-time">{{.Comment.CreatedAt}}</time>
+    {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
+  </header>
+  <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
+  {{if .CanReply}}<div class="dc-actions"><button class="dc-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button></div>{{end}}
+</article>
+{{range .Comment.Children}}{{template "embed_comment" dict "Comment" . "Root" false "CanReply" $.CanReply}}{{end}}
+{{end}}
+
+{{define "embed_form"}}
+<form class="dc-form {{if .Reply}}reply{{end}}">
+  <input type="hidden" name="parent_id" value="{{.ParentID}}">
+  <label class="dc-hp">Leave this empty<input name="honeypot" autocomplete="off"></label>
+  <div class="dc-row">
+    <label class="dc-field"><span>Name</span><input class="dc-input" name="author_name" required maxlength="160"><small>Optional: use Name##secret for a stable tripcode.</small></label>
+    <label class="dc-field"><span>Email (optional, not shown)</span><input class="dc-input" name="author_email" type="email"></label>
+  </div>
+  <label class="dc-field"><span>Website (optional)</span><input class="dc-input" name="author_website" type="url"></label>
+  <label class="dc-field"><span>Comment</span><textarea class="dc-textarea" name="body_markdown" required></textarea></label>
+  <button class="dc-btn primary">{{if .Reply}}Submit reply{{else}}Submit comment{{end}}</button>
+</form>
+{{end}}

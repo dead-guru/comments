@@ -1,0 +1,16 @@
+{{template "admin_head" .}}
+<h1>{{.Site.Name}}</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+{{template "site_form_fields" .}}
+<section class="panel">
+  <h2>Embed snippet</h2>
+  <pre class="snippet">&lt;div id="comments"&gt;&lt;/div&gt;
+&lt;script
+  src="/widget.js"
+  data-site="{{.Site.Key}}"
+  data-page="/posts/my-article"
+  data-target="#comments"
+  data-theme="{{.Site.DefaultTheme}}"&gt;
+&lt;/script&gt;</pre>
+</section>
+{{template "admin_foot" .}}

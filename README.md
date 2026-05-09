@@ -1,0 +1,264 @@
+# deadcomments
+
+Self-hosted universal comments for blogs and static websites. Public commenters are anonymous. Admins sign in with GitHub OAuth. Comments render through a small iframe widget backed by Go, SQLite, server-rendered HTML, sanitized GitHub-flavored Markdown, and a layered backend.
+
+## Run locally
+
+```bash
+go run ./cmd/server
+```
+
+Default local config:
+
+```bash
+BASE_URL=http://localhost:8080
+PORT=8080
+DATABASE_PATH=deadcomments.db
+```
+
+For the bundled Docusaurus test stand, seed a demo site:
+
+```bash
+DEADCOMMENTS_DEV_SEED=1 go run ./cmd/server
+```
+
+That creates a `docs-demo` site with automatic moderation and allowed origins for `localhost:3000` and `localhost:3001`.
+
+## GitHub OAuth
+
+Create a GitHub OAuth app:
+
+- Homepage URL: `http://localhost:8080`
+- Authorization callback URL: `http://localhost:8080/auth/github/callback`
+
+Set:
+
+```bash
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_ALLOWED_LOGINS=your-github-login
+SERVER_SECRET="$(openssl rand -hex 32)"
+SESSION_SECRET="$(openssl rand -hex 32)"
+TRIPCODE_SECRET="$(openssl rand -hex 32)"
+```
+
+Only logins listed in `GITHUB_ALLOWED_LOGINS` can access `/admin`.
+
+## Environment
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `BASE_URL` | `http://localhost:8080` | Public base URL used for OAuth callback construction |
+| `DATABASE_PATH` | `deadcomments.db` | SQLite database path |
+| `SERVER_SECRET` | generated on boot if empty | HMAC salt for IP, email, and user-agent hashes |
+| `SESSION_SECRET` | `SERVER_SECRET` | Admin session token hashing and CSRF signing |
+| `TRIPCODE_SECRET` | `SERVER_SECRET` | HMAC secret for public anonymous tripcodes |
+| `GITHUB_CLIENT_ID` | empty | GitHub OAuth client ID |
+| `GITHUB_CLIENT_SECRET` | empty | GitHub OAuth client secret |
+| `GITHUB_ALLOWED_LOGINS` | empty | Comma-separated GitHub logins allowed to administer |
+| `PORT` | `8080` | HTTP port |
+| `SESSION_TTL_HOURS` | `720` | Admin session lifetime |
+| `DEADCOMMENTS_DEV_SEED` | empty | Set to `1` to create the local demo site |
+
+## Embed
+
+```html
+<div id="comments"></div>
+<script
+  src="https://comments.example.com/widget.js"
+  data-site="my-blog"
+  data-page="/posts/my-article"
+  data-target="#comments"
+  data-theme="auto">
+</script>
+```
+
+Use explicit `data-page` keys. `data-page="auto"` is supported as a convenience and resolves to `location.pathname + location.search`.
+
+## Docusaurus Test Stand
+
+In one terminal:
+
+```bash
+DEADCOMMENTS_DEV_SEED=1 go run ./cmd/server
+```
+
+In another:
+
+```bash
+cd examples/docusaurus
+npm install
+npm start
+```
+
+Open `http://localhost:3000/docs/intro`, `threading`, and `moderation`. The example loader injects `http://localhost:8080/widget.js` using site key `docs-demo`.
+
+### Docker Compose
+
+To run the comments service and the Docusaurus test stand together:
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+- comments service: `http://localhost:8080`
+- Docusaurus test stand: `http://localhost:3000/docs/intro`
+
+The compose setup enables `DEADCOMMENTS_DEV_SEED=1`, so the `docs-demo` site is created automatically with allowed origins for local Docusaurus testing.
+
+SQLite data is stored in the named Docker volume `deadcomments-data`. To reset local test data:
+
+```bash
+docker compose down -v
+```
+
+For admin GitHub OAuth inside Docker, export these before starting compose:
+
+```bash
+export GITHUB_CLIENT_ID=...
+export GITHUB_CLIENT_SECRET=...
+export GITHUB_ALLOWED_LOGINS=your-github-login
+docker compose up --build
+```
+
+## Admin
+
+Open `http://localhost:8080/admin`. From the admin panel you can:
+
+- create and edit sites
+- configure allowed origins and moderation mode
+- inspect pages and change page state
+- approve, reject, spam, delete, and edit comments
+- manage reserved tripcode identities
+- ban IP hashes and add word-ban rules
+
+## Tripcode Identities
+
+Tripcodes provide stable public identity hints without public user accounts. This is identity, not authentication.
+
+Public commenters can write their name as:
+
+```text
+Display Name##secret
+```
+
+The server parses this into:
+
+- display name: `Display Name`
+- tripcode secret: `secret`
+
+The submitted secret is never stored on the comment and is never returned to the frontend.
+
+### Anonymous Tripcodes
+
+If no reserved identity exists for the normalized display name, a submitted secret generates a stable public tripcode:
+
+```text
+base32(HMAC_SHA256(TRIPCODE_SECRET, normalized_secret))[0:10]
+```
+
+The public UI shows:
+
+```text
+Display Name ◆K7F3Q9M2PA
+```
+
+This means only that the same anonymous actor used the same secret. It does not prove the real-world identity of `Display Name`.
+
+### Reserved Identities
+
+Admins can create reserved identities at `/admin/identities`.
+
+Reserved identity fields include:
+
+- global or site-specific scope
+- display name
+- secret hash
+- public tripcode
+- badge type: `verified`, `admin`, `author`, `custom`
+- optional badge label
+
+If a comment uses a reserved name:
+
+- no secret: rejected
+- wrong secret: rejected
+- correct secret: comment is attached to the reserved identity and rendered with the configured badge
+
+This blocks simple spoofing of reserved names. For example, if `UT3USW` is reserved, `UT3USW` and `UT3USW##wrong` are rejected, while `UT3USW##correct-secret` is accepted.
+
+If no site exists, the dashboard prompts you to create the first site.
+
+## Storage and Security
+
+SQLite migrations live in `migrations/`. The app enables foreign keys, WAL mode, and a busy timeout.
+
+The service never stores raw IP addresses or raw user-agent strings. IP, email, and user-agent values are HMAC-SHA256 hashes using `SERVER_SECRET`. Markdown is rendered with goldmark GFM and sanitized with bluemonday. Admin POST routes use CSRF tokens. Admin sessions use HttpOnly SameSite cookies.
+
+Public comments can be arbitrarily deep in storage. The iframe renders root comments normally, visually flattens deeper replies under the root, and adds a `replying to @author` label instead of indenting forever.
+
+## Events
+
+Important domain actions publish durable events to the `events` table and record handler delivery state in `event_deliveries`. The current bus runs synchronous in-process handlers; future email, Discord, Telegram, webhook, or async worker handlers can subscribe without changing HTTP handlers.
+
+Current event sources include site create/update, page auto-create and state changes, comment create/edit/status changes, IP bans, word bans, and admin login. The admin event log is available at `/admin/events`.
+
+Identity create/update/delete and identity secret reset also publish events.
+
+Comment moderation history is now an event subscriber: the audit handler listens to comment events and writes `moderation_events`. That keeps audit behavior out of handlers and away from core comment mutation code.
+
+## Production Notes
+
+- Run behind HTTPS and set `BASE_URL` to the HTTPS origin.
+- Set stable, high-entropy `SERVER_SECRET` and `SESSION_SECRET` before accepting comments.
+- Keep `GITHUB_ALLOWED_LOGINS` explicit.
+- Configure each site with exact allowed origins.
+- Put the SQLite database on durable storage.
+- Add process supervision with systemd, Docker, Nomad, Fly, or another single-service runtime.
+- Terminate TLS at a reverse proxy and forward standard headers.
+- Monitor SQLite file size, pending moderation volume, and HTTP 4xx/5xx rates.
+
+## Backups
+
+SQLite backups can be taken online:
+
+```bash
+sqlite3 deadcomments.db ".backup 'deadcomments-$(date +%Y%m%d-%H%M%S).db'"
+```
+
+Back up both the database and the exact `SERVER_SECRET`; without the secret, future hashes cannot be matched against existing bans or anonymous identities.
+
+## Tests
+
+```bash
+go test ./...
+```
+
+The suite covers Markdown sanitization, origin validation, page auto-creation, comment and reply creation, moderation decisions, tree flattening, and banned-IP rejection.
+
+## CI and Releases
+
+GitHub Actions workflows live in `.github/workflows/`.
+
+- `CI`: Go formatting, module consistency, vet, race tests, coverage artifact, `govulncheck`, Docusaurus build, and Docker Compose smoke test.
+- `CodeQL`: scheduled and PR security analysis for Go and JavaScript.
+- `Release`: triggered by tags matching `v*.*.*`.
+
+To publish a release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow:
+
+- runs the test gate
+- builds Linux, macOS, and Windows release archives
+- includes the binary plus migrations/templates/static/widget runtime assets
+- creates SHA256 checksums
+- publishes a GitHub Release
+- publishes a multi-arch Docker image to GHCR
+
+Dependabot is configured for GitHub Actions, Go modules, Docker base images, and the Docusaurus test stand.

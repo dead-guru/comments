@@ -1,0 +1,12 @@
+{{template "admin_head" .}}
+<h1>Comments {{if .Status}}<span class="muted">{{.Status}}</span>{{end}}</h1>
+<form class="panel actions" method="get" action="/admin/comments">
+  <input name="q" placeholder="Search body or author">
+  <select name="status">
+    <option value="">Any status</option>
+    <option value="pending">pending</option><option value="approved">approved</option><option value="rejected">rejected</option><option value="spam">spam</option><option value="deleted">deleted</option>
+  </select>
+  <button>Filter</button>
+</form>
+{{template "comments_table" .Comments}}
+{{template "admin_foot" .}}

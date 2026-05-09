@@ -1,0 +1,16 @@
+{{template "admin_head" .}}
+<h1>{{.Page.PageKey}}</h1>
+<section class="panel">
+  <p><strong>State:</strong> {{.Page.State}}</p>
+  <p><strong>URL:</strong> {{.Page.URL}}</p>
+  <p><strong>Counts:</strong> {{.Page.CommentsCount}} total, {{.Page.ApprovedCount}} approved, {{.Page.PendingCount}} pending</p>
+  <div class="actions">
+    <form method="post" action="/admin/pages/{{.Page.ID}}/state"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><input type="hidden" name="state" value="open"><button>Open</button></form>
+    <form method="post" action="/admin/pages/{{.Page.ID}}/state"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><input type="hidden" name="state" value="locked"><button>Lock</button></form>
+    <form method="post" action="/admin/pages/{{.Page.ID}}/state"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><input type="hidden" name="state" value="hidden"><button>Hide</button></form>
+    <form method="post" action="/admin/pages/{{.Page.ID}}/state"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><input type="hidden" name="state" value="archived"><button>Archive</button></form>
+  </div>
+</section>
+<h2>Comments</h2>
+{{template "comments_table" .Comments}}
+{{template "admin_foot" .}}

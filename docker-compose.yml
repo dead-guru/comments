@@ -1,0 +1,41 @@
+services:
+  comments:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: deadcomments:local
+    environment:
+      BASE_URL: http://localhost:8080
+      DATABASE_PATH: /data/deadcomments.db
+      PORT: "8080"
+      DEADCOMMENTS_DEV_SEED: "1"
+      SERVER_SECRET: local-dev-server-secret-change-me
+      SESSION_SECRET: local-dev-session-secret-change-me
+      TRIPCODE_SECRET: local-dev-tripcode-secret-change-me
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_ALLOWED_LOGINS: ${GITHUB_ALLOWED_LOGINS:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - deadcomments-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  docusaurus:
+    build:
+      context: ./examples/docusaurus
+      dockerfile: Dockerfile
+    image: deadcomments-docusaurus:local
+    ports:
+      - "3000:3000"
+    depends_on:
+      comments:
+        condition: service_healthy
+
+volumes:
+  deadcomments-data:

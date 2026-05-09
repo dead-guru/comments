@@ -1,0 +1,34 @@
+{{template "admin_head" .}}
+<h1>Comment by {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</h1>
+<section class="panel">
+  <p><strong>Status:</strong> <span class="status-{{.Comment.Status}}">{{.Comment.Status}}</span></p>
+  <p><strong>Identity:</strong> {{.Comment.TripcodeKind}}{{if .Comment.TripcodePublic}} · ◆{{.Comment.TripcodePublic}}{{end}}{{if .Comment.IdentityID}} · reserved #{{.Comment.IdentityID}}{{end}}</p>
+  <p><strong>Created:</strong> {{.Comment.CreatedAt}}</p>
+  <p><strong>IP hash:</strong> {{if .Comment.IPHash}}{{.Comment.IPHash}}{{else}}<span class="muted">none</span>{{end}}</p>
+  <p><strong>User-agent hash:</strong> {{if .Comment.UserAgentHash}}{{.Comment.UserAgentHash}}{{else}}<span class="muted">none</span>{{end}}</p>
+  <div class="actions">
+    {{template "comment_actions" .}}
+  </div>
+</section>
+<h2>Rendered body</h2>
+<div class="comment-body">{{safeHTML .Comment.BodyHTML}}</div>
+<h2>Edit markdown</h2>
+<form class="form" method="post" action="/admin/comments/{{.Comment.ID}}/edit">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <textarea name="body_markdown">{{.Comment.BodyMarkdown}}</textarea>
+  <button class="primary">Save edit</button>
+</form>
+<h2>Moderation history</h2>
+<table>
+  <thead><tr><th>Action</th><th>Admin</th><th>Reason</th><th>Created</th></tr></thead>
+  <tbody>{{range .Events}}<tr><td>{{.Action}}</td><td>{{if .AdminID}}{{.AdminID}}{{else}}system{{end}}</td><td>{{if .Reason}}{{.Reason}}{{end}}</td><td>{{.CreatedAt}}</td></tr>{{else}}<tr><td colspan="4" class="muted">No moderation events yet.</td></tr>{{end}}</tbody>
+</table>
+{{if .Comment.IPHash}}
+<h2>Ban IP</h2>
+<form class="form" method="post" action="/admin/comments/{{.Comment.ID}}/ban-ip" data-confirm="Ban this IP hash and mark matching comments as spam?">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input name="reason" placeholder="Reason">
+  <button class="danger">Ban IP + mark spam</button>
+</form>
+{{end}}
+{{template "admin_foot" .}}

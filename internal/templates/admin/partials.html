@@ -1,0 +1,63 @@
+{{define "site_form_fields"}}
+<form class="form panel" method="post" action="{{.Action}}">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <div class="field"><label>Name</label><input name="name" value="{{.Site.Name}}" required></div>
+  <div class="field"><label>Key</label><input name="key" value="{{.Site.Key}}" required></div>
+  <div class="field"><label>Allowed origins, one per line</label><textarea name="allowed_origins" placeholder="https://example.com">{{join .Site.AllowedOrigins}}</textarea></div>
+  <div class="field"><label>Moderation</label><select name="default_moderation_mode"><option value="manual" {{if eq .Site.DefaultModerationMode "manual"}}selected{{end}}>manual</option><option value="auto" {{if eq .Site.DefaultModerationMode "auto"}}selected{{end}}>auto</option></select></div>
+  <div class="field"><label>Default page state</label><select name="default_page_state"><option value="open" {{if eq .Site.DefaultPageState "open"}}selected{{end}}>open</option><option value="locked" {{if eq .Site.DefaultPageState "locked"}}selected{{end}}>locked</option><option value="hidden" {{if eq .Site.DefaultPageState "hidden"}}selected{{end}}>hidden</option><option value="archived" {{if eq .Site.DefaultPageState "archived"}}selected{{end}}>archived</option></select></div>
+  <div class="field"><label>Default theme</label><select name="default_theme"><option value="auto" {{if eq .Site.DefaultTheme "auto"}}selected{{end}}>auto</option><option value="light" {{if eq .Site.DefaultTheme "light"}}selected{{end}}>light</option><option value="dark" {{if eq .Site.DefaultTheme "dark"}}selected{{end}}>dark</option><option value="minimal" {{if eq .Site.DefaultTheme "minimal"}}selected{{end}}>minimal</option></select></div>
+  <div class="field"><label>Max comment length</label><input type="number" name="max_comment_length" value="{{.Site.MaxCommentLength}}" min="1"></div>
+  <label><input type="checkbox" name="allow_replies" value="1" {{if .Site.AllowReplies}}checked{{end}}> Allow replies</label>
+  <button class="primary">Save site</button>
+</form>
+{{end}}
+
+{{define "pages_table"}}
+<table>
+  <thead><tr><th>Page</th><th>State</th><th>Counts</th><th>Updated</th></tr></thead>
+  <tbody>{{range .}}<tr><td><a href="/admin/pages/{{.ID}}">{{.PageKey}}</a><div class="muted">{{.Title}}</div></td><td>{{.State}}</td><td>{{.ApprovedCount}} approved · {{.PendingCount}} pending</td><td>{{.UpdatedAt}}</td></tr>{{else}}<tr><td colspan="4" class="muted">No pages.</td></tr>{{end}}</tbody>
+</table>
+{{end}}
+
+{{define "comments_table"}}
+<table>
+  <thead><tr><th>Author</th><th>Status</th><th>Body</th><th>Created</th><th></th></tr></thead>
+  <tbody>{{range .}}<tr><td>{{if .AuthorDisplayName}}{{.AuthorDisplayName}}{{else}}{{.AuthorName}}{{end}}{{if .TripcodePublic}} <span class="muted">◆{{.TripcodePublic}}</span>{{end}}</td><td class="status-{{.Status}}">{{.Status}}</td><td>{{.BodyMarkdown}}</td><td>{{.CreatedAt}}</td><td><a href="/admin/comments/{{.ID}}">Open</a></td></tr>{{else}}<tr><td colspan="5" class="muted">No comments.</td></tr>{{end}}</tbody>
+</table>
+{{end}}
+
+{{define "comment_actions"}}
+<form method="post" action="/admin/comments/{{.Comment.ID}}/approve"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Approve</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/reject"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Reject</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/spam"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button>Spam</button></form>
+<form method="post" action="/admin/comments/{{.Comment.ID}}/delete" data-confirm="Delete this comment?"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button class="danger">Delete</button></form>
+{{end}}
+
+{{define "events_table"}}
+<table>
+  <thead><tr><th>Type</th><th>Aggregate</th><th>Site</th><th>Page</th><th>Comment</th><th>Actor</th><th>Occurred</th></tr></thead>
+  <tbody>{{range .}}<tr><td><code>{{.Type}}</code></td><td>{{.AggregateType}}:{{.AggregateID}}</td><td>{{if .SiteID}}{{.SiteID}}{{end}}</td><td>{{if .PageID}}{{.PageID}}{{end}}</td><td>{{if .CommentID}}{{.CommentID}}{{end}}</td><td>{{if .ActorAdminID}}{{.ActorAdminID}}{{else}}system/public{{end}}</td><td>{{.OccurredAt}}</td></tr>{{else}}<tr><td colspan="7" class="muted">No events.</td></tr>{{end}}</tbody>
+</table>
+{{end}}
+
+{{define "identity_form_fields"}}
+<form class="form panel" method="post" action="{{.Action}}">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <div class="field"><label>Display name</label><input name="display_name" value="{{.Identity.DisplayName}}" required></div>
+  <div class="field">
+    <label>Site scope</label>
+    <select name="site_id">
+      <option value="global">Global</option>
+      {{range .Sites}}<option value="{{.ID}}" {{if siteSelected $.Identity.SiteID .ID}}selected{{end}}>{{.Name}} ({{.Key}})</option>{{end}}
+    </select>
+  </div>
+  {{if eq .Mode "create"}}
+  <div class="field"><label>Tripcode secret</label><input type="password" name="secret" required autocomplete="new-password"></div>
+  {{end}}
+  <div class="field"><label>Public tripcode</label><input name="public_tripcode" value="{{.Identity.PublicTripcode}}" placeholder="Generated from secret if empty"></div>
+  <div class="field"><label>Badge type</label><select name="badge_type"><option value="verified" {{if eq .Identity.BadgeType "verified"}}selected{{end}}>verified</option><option value="admin" {{if eq .Identity.BadgeType "admin"}}selected{{end}}>admin</option><option value="author" {{if eq .Identity.BadgeType "author"}}selected{{end}}>author</option><option value="custom" {{if eq .Identity.BadgeType "custom"}}selected{{end}}>custom</option></select></div>
+  <div class="field"><label>Badge label</label><input name="badge_label" value="{{if .Identity.BadgeLabel}}{{.Identity.BadgeLabel}}{{end}}" placeholder="Optional label"></div>
+  <button class="primary">Save identity</button>
+</form>
+{{end}}

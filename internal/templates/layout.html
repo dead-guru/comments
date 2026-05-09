@@ -1,0 +1,36 @@
+{{define "admin_head"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>deadcomments admin</title>
+  <link rel="stylesheet" href="/static/admin.css">
+  <script defer src="/static/admin.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <nav class="nav">
+      <a class="brand" href="/admin">deadcomments</a>
+      <a href="/admin/sites">Sites</a>
+      <a href="/admin/comments/pending">Pending</a>
+      <a href="/admin/comments">Comments</a>
+      <a href="/admin/identities">Identities</a>
+      <a href="/admin/bans">Bans</a>
+      <a href="/admin/events">Events</a>
+      {{if .Admin}}
+      <form method="post" action="/admin/logout">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button>Log out</button>
+      </form>
+      {{end}}
+    </nav>
+  </div>
+  <main class="shell">
+{{end}}
+
+{{define "admin_foot"}}
+  </main>
+</body>
+</html>
+{{end}}

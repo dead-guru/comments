@@ -1,0 +1,12 @@
+{{template "admin_head" .}}
+<h1>Pages</h1>
+<form class="panel actions" method="get">
+  <input name="q" placeholder="Search page key, title, URL" value="">
+  <select name="state">
+    <option value="">Any state</option>
+    <option>open</option><option>locked</option><option>hidden</option><option>archived</option>
+  </select>
+  <button>Filter</button>
+</form>
+{{template "pages_table" .Pages}}
+{{template "admin_foot" .}}

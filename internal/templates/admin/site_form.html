@@ -1,0 +1,5 @@
+{{template "admin_head" .}}
+<h1>New site</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+{{template "site_form_fields" .}}
+{{template "admin_foot" .}}

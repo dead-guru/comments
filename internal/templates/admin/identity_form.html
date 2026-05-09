@@ -1,0 +1,5 @@
+{{template "admin_head" .}}
+<h1>New identity</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+{{template "identity_form_fields" .}}
+{{template "admin_foot" .}}

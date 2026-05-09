@@ -1,0 +1,23 @@
+{{template "admin_head" .}}
+<h1>Dashboard</h1>
+{{if eq .TotalSites 0}}
+<section class="panel">
+  <h2>Create your first site</h2>
+  <p class="muted">A site defines allowed origins, moderation defaults, and widget configuration.</p>
+  <a class="button primary" href="/admin/sites/new">New site</a>
+</section>
+{{end}}
+<section class="grid">
+  <div class="metric"><span class="muted">Sites</span><strong>{{.TotalSites}}</strong></div>
+  <div class="metric"><span class="muted">Pages</span><strong>{{.TotalPages}}</strong></div>
+  <div class="metric"><span class="muted">Pending</span><strong>{{.Pending}}</strong></div>
+  <div class="metric"><span class="muted">Approved today</span><strong>{{.ApprovedToday}}</strong></div>
+  <div class="metric"><span class="muted">Spam today</span><strong>{{.SpamToday}}</strong></div>
+</section>
+<h2>Recent pending comments</h2>
+{{template "comments_table" .RecentPending}}
+<h2>Recent pages</h2>
+{{template "pages_table" .RecentPages}}
+<h2>Recent events</h2>
+{{template "events_table" .RecentEvents}}
+{{template "admin_foot" .}}

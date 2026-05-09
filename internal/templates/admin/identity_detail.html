@@ -1,0 +1,20 @@
+{{template "admin_head" .}}
+<h1>{{.Identity.DisplayName}}</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+{{template "identity_form_fields" .}}
+<section class="panel">
+  <h2>Reset secret</h2>
+  <form class="form" method="post" action="/admin/identities/{{.Identity.ID}}/reset-secret">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field"><label>New tripcode secret</label><input type="password" name="secret" required autocomplete="new-password"></div>
+    <button>Reset secret</button>
+  </form>
+</section>
+<section class="panel">
+  <h2>Delete identity</h2>
+  <form method="post" action="/admin/identities/{{.Identity.ID}}/delete" data-confirm="Delete this reserved identity?">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button class="danger">Delete identity</button>
+  </form>
+</section>
+{{template "admin_foot" .}}
