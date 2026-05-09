@@ -262,6 +262,29 @@ body {
 .dc-body { padding: 12px; overflow-wrap: anywhere; }
 .dc-body > :first-child { margin-top: 0; }
 .dc-body > :last-child { margin-bottom: 0; }
+.dc-body a {
+  color: var(--dc-accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.dc-body a:hover,
+.dc-body a:focus-visible {
+  text-decoration-thickness: 2px;
+}
+.dc-body img {
+  display: block;
+  max-width: 100%;
+  max-height: min(70vh, 720px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: 12px 0;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius);
+  background: var(--dc-card);
+}
 .dc-body pre {
   padding: 12px;
   overflow-x: auto;
