@@ -17,6 +17,9 @@
   var activeSelection = null;
   var popover = null;
   var panel = null;
+  var selectionMarker = null;
+  var selectionTimer = null;
+  var pointerSelecting = false;
   var messageTimer = null;
 
   if (!site) return;
@@ -28,21 +31,29 @@
   assignRootAnchors();
   loadAnnotations();
 
-  document.addEventListener("mouseup", handleSelection);
+  document.addEventListener(window.PointerEvent ? "pointerdown" : "mousedown", function (event) {
+    if (annotationChrome(event.target)) return;
+    pointerSelecting = true;
+    window.clearTimeout(selectionTimer);
+    closePopover();
+  }, true);
+  document.addEventListener(window.PointerEvent ? "pointerup" : "mouseup", function (event) {
+    pointerSelecting = false;
+    if (annotationChrome(event.target)) return;
+    scheduleSelectionHandling();
+  }, true);
   document.addEventListener("keyup", function (event) {
     if (event.key === "Escape") {
       closePopover();
       closePanel();
       return;
     }
-    handleSelection();
+    if (!annotationChrome(event.target)) scheduleSelectionHandling();
   });
   document.addEventListener("selectionchange", function () {
-    if (!window.getSelection || !window.getSelection().toString().trim()) {
-      return;
-    }
-    window.clearTimeout(messageTimer);
-    messageTimer = window.setTimeout(handleSelection, 80);
+    if (pointerSelecting) return;
+    if (!window.getSelection || window.getSelection().toString().trim()) return;
+    window.clearTimeout(selectionTimer);
   });
   window.addEventListener("message", function (event) {
     if (event.origin !== window.location.origin || !event.data) return;
@@ -52,6 +63,16 @@
   });
   window.addEventListener("resize", closePopover);
   window.setInterval(loadAnnotations, 30000);
+
+  function annotationChrome(target) {
+    if (!target || typeof target.closest !== "function") return false;
+    return !!target.closest(".dc-annotation-popover,.dc-annotation-panel,.dc-annotation-toast,input,textarea,select,button");
+  }
+
+  function scheduleSelectionHandling() {
+    window.clearTimeout(selectionTimer);
+    selectionTimer = window.setTimeout(handleSelection, 40);
+  }
 
   function t(key) {
     var dict = {
@@ -147,6 +168,7 @@
   }
 
   function handleSelection() {
+    if (pointerSelecting) return;
     if (!window.getSelection) return;
     var selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
@@ -170,7 +192,7 @@
       prefix: contextBefore(root.textContent || "", offsets.start),
       suffix: contextAfter(root.textContent || "", offsets.end)
     };
-    openPopover(range);
+    openPopover(markActiveSelection(range) || range);
   }
 
   function rangeOffsets(root, range) {
@@ -190,8 +212,23 @@
     return text.slice(offset, Math.min(text.length, offset + 160)).trim();
   }
 
-  function openPopover(range) {
-    closePopover();
+  function markActiveSelection(range) {
+    clearSelectionMarker();
+    var marker = document.createElement("mark");
+    marker.className = "dc-annotation-selection";
+    try {
+      var fragment = range.extractContents();
+      marker.appendChild(fragment);
+      range.insertNode(marker);
+      selectionMarker = marker;
+      return marker;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function openPopover(anchor) {
+    closePopover({keepSelection: true});
     popover = document.createElement("form");
     popover.className = "dc-annotation-popover";
     popover.innerHTML = [
@@ -213,8 +250,10 @@
     popover.addEventListener("submit", submitAnnotation);
     popover.querySelector(".dc-annotation-cancel").addEventListener("click", closePopover);
     document.body.appendChild(popover);
-    positionPopover(popover, range);
-    popover.querySelector('textarea[name="body_markdown"]').focus();
+    positionPopover(popover, anchor);
+    window.setTimeout(function () {
+      if (popover) popover.querySelector('textarea[name="body_markdown"]').focus();
+    }, 0);
   }
 
   function fillPopoverText(form) {
@@ -232,8 +271,17 @@
     form.querySelector(".dc-annotation-cancel").textContent = t("cancel");
   }
 
-  function positionPopover(node, range) {
-    var rect = range.getBoundingClientRect();
+  function anchorRect(anchor) {
+    var rect = anchor.getBoundingClientRect();
+    if ((!rect.width && !rect.height) && anchor.getClientRects) {
+      var rects = anchor.getClientRects();
+      if (rects.length) rect = rects[rects.length - 1];
+    }
+    return rect;
+  }
+
+  function positionPopover(node, anchor) {
+    var rect = anchorRect(anchor);
     var width = Math.min(520, Math.max(320, window.innerWidth - 32));
     node.style.width = width + "px";
     var left = Math.min(window.innerWidth - width - 16, Math.max(16, rect.left + rect.width / 2 - width / 2));
@@ -242,9 +290,21 @@
     node.style.top = top + "px";
   }
 
-  function closePopover() {
+  function closePopover(options) {
     if (popover && popover.parentNode) popover.parentNode.removeChild(popover);
     popover = null;
+    if (!options || !options.keepSelection) clearSelectionMarker();
+  }
+
+  function clearSelectionMarker() {
+    if (!selectionMarker) return;
+    var parent = selectionMarker.parentNode;
+    if (parent) {
+      while (selectionMarker.firstChild) parent.insertBefore(selectionMarker.firstChild, selectionMarker);
+      parent.removeChild(selectionMarker);
+      parent.normalize();
+    }
+    selectionMarker = null;
   }
 
   function profileKey() {
@@ -306,13 +366,13 @@
       });
     }).then(function (data) {
       var annotation = data.annotation;
+      closePopover();
       if (annotation) {
         annotation._localPending = data.status === "pending";
         addAnnotations([annotation]);
         openPanel(groupKey(annotation));
       }
       showDocumentMessage(data.message || (data.status === "pending" ? t("pending") : t("posted")), data.status === "pending" ? "warning" : "success");
-      closePopover();
       if (window.getSelection) window.getSelection().removeAllRanges();
     }).catch(function (error) {
       setFormMessage(form, error.message || t("failed"), "error");
@@ -577,6 +637,7 @@
     style.id = "dc-annotation-styles";
     style.textContent = [
       ".dc-annotation-mark{background:rgba(255,212,59,.42);color:inherit;border-radius:3px;box-shadow:0 0 0 2px rgba(255,212,59,.2);cursor:pointer;padding:0 .04em}",
+      ".dc-annotation-selection{background:rgba(255,212,59,.48);color:inherit;border-radius:3px;box-shadow:0 0 0 2px rgba(255,212,59,.26);padding:0 .04em}",
       ".dc-annotation-mark:hover,.dc-annotation-mark:focus{background:rgba(255,212,59,.62);outline:2px solid rgba(9,105,218,.45);outline-offset:2px}",
       ".dc-annotation-mark.is-focused{background:rgba(88,166,255,.42);box-shadow:0 0 0 3px rgba(88,166,255,.28)}",
       ".dc-annotation-mark.is-pending{background:rgba(210,153,34,.32)}",
