@@ -80,18 +80,41 @@ document.addEventListener("input", function (event) {
 function openConfirm(form, message, token) {
   var dialog = document.createElement("dialog");
   dialog.className = "confirm-dialog";
-  dialog.innerHTML = [
-    "<form method=\"dialog\" class=\"confirm-card\">",
-    "<h2>Confirm action</h2>",
-    "<p></p>",
-    token ? "<label class=\"field\"><span>Type " + token + " to confirm</span><input data-confirm-input autocomplete=\"off\"></label>" : "",
-    "<div class=\"actions\"><button value=\"cancel\">Cancel</button><button class=\"danger\" value=\"confirm\" data-confirm-final" + (token ? " disabled" : "") + ">Confirm</button></div>",
-    "</form>"
-  ].join("");
-  dialog.querySelector("p").textContent = message || "Are you sure?";
+  var dialogForm = document.createElement("form");
+  dialogForm.method = "dialog";
+  dialogForm.className = "confirm-card";
+  var title = document.createElement("h2");
+  title.textContent = "Confirm action";
+  var copy = document.createElement("p");
+  copy.textContent = message || "Are you sure?";
+  dialogForm.append(title, copy);
+  var input = null;
+  if (token) {
+    var label = document.createElement("label");
+    label.className = "field";
+    var labelText = document.createElement("span");
+    labelText.textContent = "Type " + token + " to confirm";
+    input = document.createElement("input");
+    input.dataset.confirmInput = "";
+    input.autocomplete = "off";
+    label.append(labelText, input);
+    dialogForm.appendChild(label);
+  }
+  var actions = document.createElement("div");
+  actions.className = "actions";
+  var cancel = document.createElement("button");
+  cancel.value = "cancel";
+  cancel.textContent = "Cancel";
+  var confirm = document.createElement("button");
+  confirm.className = "danger";
+  confirm.value = "confirm";
+  confirm.dataset.confirmFinal = "";
+  confirm.textContent = "Confirm";
+  if (token) confirm.disabled = true;
+  actions.append(cancel, confirm);
+  dialogForm.appendChild(actions);
+  dialog.appendChild(dialogForm);
   document.body.appendChild(dialog);
-  var input = dialog.querySelector("[data-confirm-input]");
-  var confirm = dialog.querySelector("[data-confirm-final]");
   if (input) {
     input.addEventListener("input", function () {
       confirm.disabled = input.value !== token;
