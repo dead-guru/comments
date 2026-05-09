@@ -489,7 +489,13 @@
     <label class="dc-field">
       <span>Name</span>
       <input class="dc-input" name="author_name" required maxlength="160">
-      <small>Use Name##secret for a tripcode</small>
+      <small class="dc-help-row">
+        <span>Use Name##secret for a tripcode</span>
+        <details class="dc-help">
+          <summary aria-label="What is a tripcode?">?</summary>
+          <span class="dc-help-popover">A tripcode is a public, stable marker generated from a secret, so others can recognize the same anonymous commenter without an account. Reserved names require the correct secret and may show a verified badge.</span>
+        </details>
+      </small>
     </label>
     <label class="dc-field">
       <span>Email (optional, not shown)</span>

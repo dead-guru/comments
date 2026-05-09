@@ -305,6 +305,54 @@ body {
   line-height: 1.25;
   opacity: .76;
 }
+.dc-help-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.dc-help {
+  position: relative;
+  display: inline-flex;
+  opacity: 1;
+}
+.dc-help summary {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--dc-border);
+  border-radius: 50%;
+  color: var(--dc-muted);
+  cursor: help;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  list-style: none;
+}
+.dc-help summary::-webkit-details-marker { display: none; }
+.dc-help[open] summary,
+.dc-help summary:hover,
+.dc-help summary:focus-visible {
+  color: var(--dc-accent);
+  border-color: var(--dc-accent);
+}
+.dc-help-popover {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: min(280px, 80vw);
+  transform: translateX(-50%);
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
 .dc-input, .dc-textarea {
   width: 100%;
   border: 1px solid var(--dc-border);
