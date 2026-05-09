@@ -22,12 +22,17 @@ type Config struct {
 	Port                string
 	SessionTTL          time.Duration
 	SecureCookies       bool
+	BehindTrustedProxy  bool
 	DevSeed             bool
 }
 
 func LoadConfig() (Config, error) {
+	baseURL := env("BASE_URL", "http://localhost:8080")
+	serverSecretSet := strings.TrimSpace(os.Getenv("SERVER_SECRET")) != ""
+	sessionSecretSet := strings.TrimSpace(os.Getenv("SESSION_SECRET")) != ""
+	tripcodeSecretSet := strings.TrimSpace(os.Getenv("TRIPCODE_SECRET")) != ""
 	cfg := Config{
-		BaseURL:            env("BASE_URL", "http://localhost:8080"),
+		BaseURL:            baseURL,
 		DatabasePath:       env("DATABASE_PATH", "deadcomments.db"),
 		ServerSecret:       os.Getenv("SERVER_SECRET"),
 		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
@@ -36,8 +41,23 @@ func LoadConfig() (Config, error) {
 		TripcodeSecret:     os.Getenv("TRIPCODE_SECRET"),
 		Port:               env("PORT", "8080"),
 		SessionTTL:         30 * 24 * time.Hour,
-		SecureCookies:      strings.HasPrefix(env("BASE_URL", "http://localhost:8080"), "https://"),
+		SecureCookies:      strings.HasPrefix(baseURL, "https://"),
+		BehindTrustedProxy: truthy(os.Getenv("BEHIND_TRUSTED_PROXY")),
 		DevSeed:            os.Getenv("DEADCOMMENTS_DEV_SEED") == "1",
+	}
+	cfg.GitHubAllowedLogins = parseAllowedLogins(os.Getenv("GITHUB_ALLOWED_LOGINS"))
+	if cfg.GitHubClientID != "" && cfg.GitHubClientSecret != "" && len(cfg.GitHubAllowedLogins) == 0 {
+		return Config{}, errors.New("GITHUB_ALLOWED_LOGINS must include at least one login when GitHub OAuth is configured")
+	}
+	if productionMode(cfg.BaseURL) {
+		switch {
+		case !serverSecretSet:
+			return Config{}, errors.New("SERVER_SECRET must be set explicitly in production")
+		case !sessionSecretSet:
+			return Config{}, errors.New("SESSION_SECRET must be set explicitly in production")
+		case !tripcodeSecretSet:
+			return Config{}, errors.New("TRIPCODE_SECRET must be set explicitly in production")
+		}
 	}
 	if cfg.ServerSecret == "" {
 		cfg.ServerSecret = devSecret()
@@ -48,7 +68,6 @@ func LoadConfig() (Config, error) {
 	if cfg.TripcodeSecret == "" {
 		cfg.TripcodeSecret = cfg.ServerSecret
 	}
-	cfg.GitHubAllowedLogins = parseAllowedLogins(os.Getenv("GITHUB_ALLOWED_LOGINS"))
 	if ttl := os.Getenv("SESSION_TTL_HOURS"); ttl != "" {
 		hours, err := strconv.Atoi(ttl)
 		if err != nil || hours <= 0 {
@@ -75,6 +94,29 @@ func parseAllowedLogins(raw string) map[string]struct{} {
 		}
 	}
 	return out
+}
+
+func truthy(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func productionMode(baseURL string) bool {
+	env := strings.ToLower(strings.TrimSpace(firstNonEmpty(os.Getenv("DEADCOMMENTS_ENV"), os.Getenv("APP_ENV"), os.Getenv("GO_ENV"))))
+	return env == "production" || strings.HasPrefix(baseURL, "https://")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func devSecret() string {

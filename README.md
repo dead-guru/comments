@@ -42,7 +42,7 @@ SESSION_SECRET="$(openssl rand -hex 32)"
 TRIPCODE_SECRET="$(openssl rand -hex 32)"
 ```
 
-Only logins listed in `GITHUB_ALLOWED_LOGINS` can access `/admin`.
+Only logins listed in `GITHUB_ALLOWED_LOGINS` can access `/admin`. If GitHub OAuth client credentials are configured, `GITHUB_ALLOWED_LOGINS` must contain at least one login; deadcomments fails closed instead of allowing arbitrary GitHub users.
 
 For Docker Compose, copy `.env.example` to `.env` and fill in the same values. GitHub OAuth uses the client ID and client secret; a GitHub App ID is not required by deadcomments.
 
@@ -52,14 +52,16 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:8080` | Public base URL used for OAuth callback construction |
 | `DATABASE_PATH` | `deadcomments.db` | SQLite database path |
-| `SERVER_SECRET` | generated on boot if empty | HMAC salt for IP, email, and user-agent hashes |
-| `SESSION_SECRET` | `SERVER_SECRET` | Admin session token hashing and CSRF signing |
-| `TRIPCODE_SECRET` | `SERVER_SECRET` | HMAC secret for public anonymous tripcodes |
+| `DEADCOMMENTS_ENV` | empty | Set to `production` to require explicit stable secrets |
+| `SERVER_SECRET` | generated on boot in development if empty | HMAC salt for IP, email, user-agent hashes, and embed submit tokens |
+| `SESSION_SECRET` | `SERVER_SECRET` in development | Admin session token hashing and CSRF signing |
+| `TRIPCODE_SECRET` | `SERVER_SECRET` in development | HMAC secret for public anonymous tripcodes |
 | `GITHUB_CLIENT_ID` | empty | GitHub OAuth client ID |
 | `GITHUB_CLIENT_SECRET` | empty | GitHub OAuth client secret |
-| `GITHUB_ALLOWED_LOGINS` | empty | Comma-separated GitHub logins allowed to administer |
+| `GITHUB_ALLOWED_LOGINS` | empty | Comma-separated GitHub logins allowed to administer; required when OAuth is configured |
 | `PORT` | `8080` | HTTP port |
 | `SESSION_TTL_HOURS` | `720` | Admin session lifetime |
+| `BEHIND_TRUSTED_PROXY` | `false` | Trust `X-Forwarded-For`/`X-Real-IP`; enable only behind a proxy that strips untrusted forwarded headers |
 | `DEADCOMMENTS_DEV_SEED` | empty | Set to `1` to create the local demo site |
 
 ## Embed
@@ -261,12 +263,12 @@ readinessProbe:
 ## Production Notes
 
 - Run behind HTTPS and set `BASE_URL` to the HTTPS origin.
-- Set stable, high-entropy `SERVER_SECRET` and `SESSION_SECRET` before accepting comments.
+- Set stable, high-entropy `SERVER_SECRET`, `SESSION_SECRET`, and `TRIPCODE_SECRET` before accepting comments. HTTPS `BASE_URL` or `DEADCOMMENTS_ENV=production` requires these secrets explicitly.
 - Keep `GITHUB_ALLOWED_LOGINS` explicit.
 - Configure each site with exact allowed origins.
 - Put the SQLite database on durable storage.
 - Add process supervision with systemd, Docker, Nomad, Fly, or another single-service runtime.
-- Terminate TLS at a reverse proxy and forward standard headers.
+- Terminate TLS at a reverse proxy and forward standard headers. Set `BEHIND_TRUSTED_PROXY=true` only when that proxy strips incoming `X-Forwarded-For` and `X-Real-IP` from untrusted clients.
 - Expose `/metrics` only to Prometheus or a trusted internal network.
 - Monitor SQLite file size, pending moderation volume, readiness failures, comment moderation outcomes, and HTTP 4xx/5xx rates.
 

@@ -66,7 +66,7 @@ func (h *Handlers) GitHubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	_, token, err := h.auth.CompleteGitHubLogin(r.Context(), r.URL.Query().Get("code"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		http.Error(w, "GitHub login is not allowed.", http.StatusForbidden)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: middleware.SessionCookieName, Value: token, Path: "/admin", HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode, Expires: time.Now().Add(30 * 24 * time.Hour)})
@@ -77,7 +77,7 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(middleware.SessionCookieName); err == nil {
 		_ = h.auth.Logout(r.Context(), cookie.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: middleware.SessionCookieName, Value: "", Path: "/admin", MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: middleware.SessionCookieName, Value: "", Path: "/admin", HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	http.Redirect(w, r, "/admin/login", http.StatusFound)
 }
 

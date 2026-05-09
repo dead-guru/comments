@@ -48,12 +48,13 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 		PageTitle     string  `json:"page_title"`
 		PageURL       string  `json:"page_url"`
 		ParentOrigin  string  `json:"parent_origin"`
+		EmbedToken    string  `json:"embed_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		writeJSONError(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	origin := firstValue(payload.ParentOrigin, r.Header.Get("Origin"))
+	origin := h.trustedCommentOrigin(r, siteKey, pageKey, payload.ParentOrigin, payload.EmbedToken)
 	referer := firstValue(r.Header.Get("Referer"))
 	comment, reason, err := h.comments.Create(r.Context(), domain.CommentCreateInput{
 		SiteKey:       siteKey,

@@ -11,14 +11,15 @@ import (
 )
 
 type Handlers struct {
-	sites    *service.SiteService
-	pages    *service.PageService
-	comments *service.CommentService
-	tmpl     *template.Template
+	sites       *service.SiteService
+	pages       *service.PageService
+	comments    *service.CommentService
+	tmpl        *template.Template
+	embedSecret string
 }
 
-func NewHandlers(sites *service.SiteService, pages *service.PageService, comments *service.CommentService, tmpl *template.Template) *Handlers {
-	return &Handlers{sites: sites, pages: pages, comments: comments, tmpl: tmpl}
+func NewHandlers(sites *service.SiteService, pages *service.PageService, comments *service.CommentService, tmpl *template.Template, embedSecret string) *Handlers {
+	return &Handlers{sites: sites, pages: pages, comments: comments, tmpl: tmpl, embedSecret: embedSecret}
 }
 
 func (h *Handlers) WidgetJS(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +40,16 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		h.renderEmbedError(w, "Comments are not configured.")
 		return
 	}
+	site, err := h.sites.ByKey(r.Context(), siteKey)
+	if err != nil || site == nil {
+		h.renderEmbedError(w, "Comments are unavailable.")
+		return
+	}
+	parentOrigin := originFromRequest(r)
+	if !h.sites.OriginAllowed(site, parentOrigin) {
+		h.renderEmbedError(w, "Comments are unavailable on this origin.")
+		return
+	}
 	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey)
 	if err != nil || page == nil {
 		h.renderEmbedError(w, "Comments are unavailable.")
@@ -50,13 +61,14 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		"Page":         page,
 		"Comments":     comments,
 		"Theme":        theme,
-		"ParentOrigin": r.URL.Query().Get("parent_origin"),
+		"ParentOrigin": parentOrigin,
+		"EmbedToken":   h.signEmbedToken(siteKey, pageKey, parentOrigin),
 		"PageTitle":    r.URL.Query().Get("title"),
 		"PageURL":      r.URL.Query().Get("url"),
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.tmpl.ExecuteTemplate(w, "comments.html", data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "comments unavailable", http.StatusInternalServerError)
 	}
 }
 

@@ -40,10 +40,11 @@ func (s *AuthService) CompleteGitHubLogin(ctx context.Context, code string) (*do
 		return nil, "", err
 	}
 	login := strings.ToLower(user.Login)
-	if len(s.allowed) > 0 {
-		if _, ok := s.allowed[login]; !ok {
-			return nil, "", errors.New("github login is not allowed")
-		}
+	if len(s.allowed) == 0 {
+		return nil, "", errors.New("github login allowlist is required")
+	}
+	if _, ok := s.allowed[login]; !ok {
+		return nil, "", errors.New("github login is not allowed")
 	}
 	admin := &domain.Admin{
 		GitHubID:    user.ID,

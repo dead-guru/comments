@@ -119,7 +119,9 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 
 	csrf := dcmiddleware.NewCSRF(cfg.SessionSecret, cfg.SecureCookies)
 	r := chi.NewRouter()
-	r.Use(chimiddleware.RealIP)
+	if cfg.BehindTrustedProxy {
+		r.Use(chimiddleware.RealIP)
+	}
 	r.Use(chimiddleware.Recoverer)
 	r.Use(dcmiddleware.RequestID)
 	r.Use(dcmiddleware.SecurityHeaders)
@@ -132,7 +134,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	r.Get("/status", health.Status)
 	r.Handle("/metrics", metrics.Handler())
 
-	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, tmpl)
+	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, tmpl, cfg.ServerSecret)
 	publichttp.Routes(r, publicHandlers, dcmiddleware.NewRateLimiter(30, time.Minute))
 
 	adminHandlers := adminhttp.NewHandlers(siteSvc, pageSvc, commentSvc, moderationSvc, identitySvc, eventSvc, authSvc, tmpl, csrf, cfg.SecureCookies)

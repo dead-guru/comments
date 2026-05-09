@@ -8,7 +8,9 @@ services:
       BASE_URL: http://localhost:8080
       DATABASE_PATH: /data/deadcomments.db
       PORT: "8080"
+      DEADCOMMENTS_ENV: development
       DEADCOMMENTS_DEV_SEED: "1"
+      BEHIND_TRUSTED_PROXY: "false"
       SERVER_SECRET: local-dev-server-secret-change-me
       SESSION_SECRET: local-dev-session-secret-change-me
       TRIPCODE_SECRET: local-dev-tripcode-secret-change-me

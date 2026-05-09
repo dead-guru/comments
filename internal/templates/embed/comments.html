@@ -21,7 +21,7 @@
       <div class="dc-empty">No comments yet.</div>
       {{end}}
       {{if eq .Page.State "open"}}
-        {{template "embed_form" dict "ParentID" "" "Reply" false}}
+        {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken}}
       {{else if eq .Page.State "locked"}}
         <p class="dc-state">Comments are locked.</p>
       {{else if eq .Page.State "archived"}}
@@ -32,9 +32,19 @@
   <script>
   (function () {
     var profileKey = "deadcomments:author:v1";
+    var wrap = document.querySelector(".dc-wrap");
+    var parentOrigin = safeOrigin(wrap ? wrap.dataset.origin : "");
 
     function sendHeight() {
-      parent.postMessage({type: "deadcomments:height", height: document.documentElement.scrollHeight}, "*");
+      if (!parentOrigin) return;
+      parent.postMessage({type: "deadcomments:height", height: document.documentElement.scrollHeight}, parentOrigin);
+    }
+    function safeOrigin(raw) {
+      try {
+        var parsed = new URL(raw || "");
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.origin;
+      } catch (_) {}
+      return "";
     }
     function readProfile() {
       try {
@@ -278,7 +288,6 @@
       var form = event.target.closest(".dc-form");
       if (!form) return;
       event.preventDefault();
-      var wrap = document.querySelector(".dc-wrap");
       var payload = Object.fromEntries(new FormData(form).entries());
       saveProfile(form);
       payload.parent_id = payload.parent_id || null;
@@ -311,7 +320,7 @@
     sendHeight();
   })();
   </script>
-  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true}}</template>
+  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true "EmbedToken" .EmbedToken}}</template>
 </body>
 </html>
 
@@ -345,6 +354,7 @@
 <form class="dc-form {{if .Reply}}reply{{end}}">
   <div class="dc-form-panel">
   <input type="hidden" name="parent_id" value="{{.ParentID}}">
+  <input type="hidden" name="embed_token" value="{{.EmbedToken}}">
   <label class="dc-hp">Leave this empty<input name="honeypot" autocomplete="off"></label>
   <div class="dc-row">
     <label class="dc-field">
