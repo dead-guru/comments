@@ -81,6 +81,8 @@ Use explicit `data-page` keys. `data-page="auto"` is supported as a convenience 
 
 Use `data-theme="inherit"` when embedding into a page whose colors should drive the widget. The host script reads the target container's computed text/background colors and sends safe theme variables into the iframe.
 
+Public comment lists support `sort=oldest`, `sort=newest`, and `sort=best`. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
+
 ## Docusaurus Test Stand
 
 In one terminal:

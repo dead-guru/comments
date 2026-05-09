@@ -204,11 +204,13 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 	rootOld := "z-root-old"
 	rootNew := "a-root-new"
 	replyOld := "reply-old"
+	replyOldTwo := "reply-old-two"
 	replyNew := "reply-new"
 	for _, comment := range []*domain.Comment{
 		{ID: rootOld, SiteID: site.ID, PageID: page.ID, AuthorName: "Root Old", AuthorDisplayName: "Root Old", BodyMarkdown: "old root", BodyHTML: "<p>old root</p>", Status: domain.CommentApproved, TripcodeKind: domain.TripcodeNone},
 		{ID: rootNew, SiteID: site.ID, PageID: page.ID, AuthorName: "Root New", AuthorDisplayName: "Root New", BodyMarkdown: "new root", BodyHTML: "<p>new root</p>", Status: domain.CommentApproved, TripcodeKind: domain.TripcodeNone},
 		{ID: replyOld, SiteID: site.ID, PageID: page.ID, ParentID: &rootOld, RootID: &rootOld, Depth: 1, AuthorName: "Reply Old", AuthorDisplayName: "Reply Old", BodyMarkdown: "old reply", BodyHTML: "<p>old reply</p>", Status: domain.CommentApproved, TripcodeKind: domain.TripcodeNone},
+		{ID: replyOldTwo, SiteID: site.ID, PageID: page.ID, ParentID: &rootOld, RootID: &rootOld, Depth: 1, AuthorName: "Reply Old Two", AuthorDisplayName: "Reply Old Two", BodyMarkdown: "old reply two", BodyHTML: "<p>old reply two</p>", Status: domain.CommentApproved, TripcodeKind: domain.TripcodeNone},
 		{ID: replyNew, SiteID: site.ID, PageID: page.ID, ParentID: &rootNew, RootID: &rootNew, Depth: 1, AuthorName: "Reply New", AuthorDisplayName: "Reply New", BodyMarkdown: "new reply", BodyHTML: "<p>new reply</p>", Status: domain.CommentApproved, TripcodeKind: domain.TripcodeNone},
 	} {
 		if err := deps.comments.Create(context.Background(), comment); err != nil {
@@ -228,10 +230,11 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 	}
 
 	times := map[string]string{
-		rootOld:  "2026-01-01T00:00:00Z",
-		replyOld: "2026-01-01T00:01:00Z",
-		rootNew:  "2026-01-01T00:02:00Z",
-		replyNew: "2026-01-01T00:03:00Z",
+		rootOld:     "2026-01-01T00:00:00Z",
+		replyOld:    "2026-01-01T00:01:00Z",
+		rootNew:     "2026-01-01T00:02:00Z",
+		replyNew:    "2026-01-01T00:03:00Z",
+		replyOldTwo: "2026-01-01T00:04:00Z",
 	}
 	for id, at := range times {
 		if _, err := deps.db.ExecContext(context.Background(), `UPDATE comments SET created_at=?, updated_at=? WHERE id=?`, at, at, id); err != nil {
@@ -239,7 +242,7 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 		}
 	}
 
-	comments, err := deps.comments.ApprovedByPage(context.Background(), page.ID)
+	comments, err := deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortOldest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,11 +250,29 @@ func TestApprovedPublicTreeGroupsRepliesUnderRootCreationOrder(t *testing.T) {
 	if len(tree) != 2 {
 		t.Fatalf("expected two root threads, got %d", len(tree))
 	}
-	if tree[0].ID != rootOld || len(tree[0].Children) != 1 || tree[0].Children[0].ID != replyOld {
+	if tree[0].ID != rootOld || len(tree[0].Children) != 2 || tree[0].Children[0].ID != replyOld || tree[0].Children[1].ID != replyOldTwo {
 		t.Fatalf("expected old root thread first with its reply, got %#v", tree[0])
 	}
 	if tree[1].ID != rootNew || len(tree[1].Children) != 1 || tree[1].Children[0].ID != replyNew {
 		t.Fatalf("expected new root thread second with its reply, got %#v", tree[1])
+	}
+
+	comments, err = deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortNewest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree = BuildTree(comments)
+	if tree[0].ID != rootNew || tree[1].ID != rootOld {
+		t.Fatalf("expected newest root thread first, got %s then %s", tree[0].ID, tree[1].ID)
+	}
+
+	comments, err = deps.comments.ApprovedByPage(context.Background(), page.ID, domain.CommentSortBest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree = BuildTree(comments)
+	if tree[0].ID != rootOld {
+		t.Fatalf("expected most active root thread first for best sort, got %s", tree[0].ID)
 	}
 }
 

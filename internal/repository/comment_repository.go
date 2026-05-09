@@ -40,8 +40,8 @@ func (r *CommentRepository) ByID(ctx context.Context, id string) (*domain.Commen
 	return scanComment(row)
 }
 
-func (r *CommentRepository) ApprovedByPage(ctx context.Context, pageID int64) ([]*domain.Comment, error) {
-	return r.list(ctx, `WHERE comments.page_id=? AND comments.status='approved' ORDER BY COALESCE(root_comments.created_at, comments.created_at), comments.created_at, comments.id`, pageID)
+func (r *CommentRepository) ApprovedByPage(ctx context.Context, pageID int64, sort domain.CommentSort) ([]*domain.Comment, error) {
+	return r.list(ctx, `WHERE comments.page_id=? AND comments.status='approved' `+publicCommentOrder(sort), pageID)
 }
 
 func (r *CommentRepository) ByPage(ctx context.Context, pageID int64) ([]*domain.Comment, error) {
@@ -128,6 +128,26 @@ func (r *CommentRepository) list(ctx context.Context, where string, args ...any)
 		comments = append(comments, c)
 	}
 	return comments, rows.Err()
+}
+
+func publicCommentOrder(sort domain.CommentSort) string {
+	threadCreated := `COALESCE(root_comments.created_at, comments.created_at)`
+	threadID := `COALESCE(root_comments.id, comments.id)`
+	threadSize := `(
+		SELECT COUNT(*)
+		FROM comments thread_comments
+		WHERE thread_comments.page_id=comments.page_id
+			AND thread_comments.status='approved'
+			AND COALESCE(thread_comments.root_id, thread_comments.id)=COALESCE(comments.root_id, comments.id)
+	)`
+	switch sort {
+	case domain.CommentSortNewest:
+		return `ORDER BY ` + threadCreated + ` DESC, ` + threadID + ` DESC, comments.created_at, comments.id`
+	case domain.CommentSortBest:
+		return `ORDER BY ` + threadSize + ` DESC, ` + threadCreated + ` DESC, ` + threadID + ` DESC, comments.created_at, comments.id`
+	default:
+		return `ORDER BY ` + threadCreated + `, ` + threadID + `, comments.created_at, comments.id`
+	}
 }
 
 func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, error) {

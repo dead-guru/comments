@@ -3,6 +3,7 @@ package domain
 import "time"
 
 type CommentStatus string
+type CommentSort string
 
 const (
 	CommentPending  CommentStatus = "pending"
@@ -10,6 +11,12 @@ const (
 	CommentRejected CommentStatus = "rejected"
 	CommentSpam     CommentStatus = "spam"
 	CommentDeleted  CommentStatus = "deleted"
+)
+
+const (
+	CommentSortOldest CommentSort = "oldest"
+	CommentSortNewest CommentSort = "newest"
+	CommentSortBest   CommentSort = "best"
 )
 
 type Comment struct {

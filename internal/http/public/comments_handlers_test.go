@@ -86,6 +86,28 @@ func TestAPICreateCommentRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestAPIListCommentsReturnsRequestedSort(t *testing.T) {
+	h := newPublicHandlerTestDeps(t)
+	router := newPublicCommentsRouter(h, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sites/test-site/pages/%2Fposts%2Fone/comments?sort=newest", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Sort domain.CommentSort `json:"sort"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Sort != domain.CommentSortNewest {
+		t.Fatalf("expected newest sort, got %q", response.Sort)
+	}
+}
+
 func TestAPICreateCommentDoesNotTrustForgedParentOrigin(t *testing.T) {
 	h := newPublicHandlerTestDeps(t)
 	router := newPublicCommentsRouter(h, nil)
@@ -260,6 +282,7 @@ func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 
 func newPublicCommentsRouter(h *Handlers, limiter *middleware.RateLimiter) http.Handler {
 	router := chi.NewRouter()
+	router.Get("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APIListComments)
 	if limiter == nil {
 		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APICreateComment)
 		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/preview", h.APIPreviewComment)

@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"deadcomments/internal/domain"
+	"deadcomments/internal/service"
 )
 
 type apiCommentList struct {
@@ -17,13 +18,15 @@ type apiCommentList struct {
 		Key   string `json:"key"`
 		State string `json:"state"`
 	} `json:"page"`
+	Sort     domain.CommentSort      `json:"sort"`
 	Comments []*domain.PublicComment `json:"comments"`
 }
 
 func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 	siteKey := chi.URLParam(r, "site_key")
 	pageKey := decodedParam(chi.URLParam(r, "page_key"))
-	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey)
+	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
+	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort)
 	if err != nil || page == nil {
 		writeJSONError(w, "comments unavailable", http.StatusNotFound)
 		return
@@ -31,6 +34,7 @@ func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 	var resp apiCommentList
 	resp.Page.Key = page.PageKey
 	resp.Page.State = string(page.State)
+	resp.Sort = sort
 	resp.Comments = toPublicComments(comments)
 	writeJSON(w, resp, http.StatusOK)
 }

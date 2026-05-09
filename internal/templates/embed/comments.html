@@ -6,13 +6,20 @@
   <link rel="stylesheet" href="/static/embed.css">
 </head>
 <body>
-  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}">
+  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}" data-sort="{{.Sort}}" data-can-reply="{{.CanReply}}">
     {{if .Error}}
       <div class="dc-error">{{.Error}}</div>
     {{else if eq .Page.State "hidden"}}
       <div class="dc-state">Comments are hidden.</div>
     {{else}}
-      <h2 class="dc-title">Comments {{if gt .Page.ApprovedCount 0}}<span>{{.Page.ApprovedCount}}</span>{{end}}</h2>
+      <div class="dc-titlebar">
+        <h2 class="dc-title">Comments {{if gt .Page.ApprovedCount 0}}<span>{{.Page.ApprovedCount}}</span>{{end}}</h2>
+        <div class="dc-sort" aria-label="Sort comments">
+          <button class="dc-sort-btn {{if eq .Sort "oldest"}}is-active{{end}}" type="button" data-sort="oldest">Oldest</button>
+          <button class="dc-sort-btn {{if eq .Sort "newest"}}is-active{{end}}" type="button" data-sort="newest">Newest</button>
+          <button class="dc-sort-btn {{if eq .Sort "best"}}is-active{{end}}" type="button" data-sort="best">Best</button>
+        </div>
+      </div>
       {{if .Comments}}
       <section class="dc-thread">
         {{range .Comments}}{{template "embed_comment" dict "Comment" . "Root" true "CanReply" (eq $.Page.State "open")}}{{end}}
@@ -127,6 +134,9 @@
     function gravatarURL(hash) {
       return "https://www.gravatar.com/avatar/" + encodeURIComponent(hash) + "?s=80&d=identicon";
     }
+    function canReply() {
+      return wrap && wrap.dataset.canReply === "true";
+    }
     function formatTime(value) {
       var date = new Date(value || "");
       if (Number.isNaN(date.getTime())) return "";
@@ -240,12 +250,14 @@
 
       var actions = document.createElement("div");
       actions.className = "dc-actions";
-      var reply = document.createElement("button");
-      reply.className = "dc-action-btn";
-      reply.type = "button";
-      reply.dataset.replyTo = comment.id;
-      reply.appendChild(text("Reply"));
-      actions.appendChild(reply);
+      if (canReply()) {
+        var reply = document.createElement("button");
+        reply.className = "dc-action-btn";
+        reply.type = "button";
+        reply.dataset.replyTo = comment.id;
+        reply.appendChild(text("Reply"));
+        actions.appendChild(reply);
+      }
       box.appendChild(actions);
       article.appendChild(box);
       return article;
@@ -259,9 +271,66 @@
       if (empty) {
         empty.replaceWith(thread);
       } else {
-        document.querySelector(".dc-title").after(thread);
+        document.querySelector(".dc-titlebar").after(thread);
       }
       return thread;
+    }
+    function renderCommentBranch(comment, root) {
+      var fragment = document.createDocumentFragment();
+      fragment.appendChild(renderComment(comment, root));
+      (comment.children || []).forEach(function (child) {
+        fragment.appendChild(renderComment(child, false));
+      });
+      return fragment;
+    }
+    function replaceComments(comments) {
+      var thread = document.querySelector(".dc-thread");
+      var empty = document.querySelector(".dc-empty");
+      if (!comments || comments.length === 0) {
+        if (!empty) {
+          empty = document.createElement("div");
+          empty.className = "dc-empty";
+          empty.appendChild(text("No comments yet."));
+        }
+        if (thread) {
+          thread.replaceWith(empty);
+        } else if (!empty.parentElement) {
+          document.querySelector(".dc-titlebar").after(empty);
+        }
+        return;
+      }
+      thread = ensureThread();
+      thread.textContent = "";
+      comments.forEach(function (comment) {
+        thread.appendChild(renderCommentBranch(comment, true));
+      });
+    }
+    function setActiveSort(sort) {
+      wrap.dataset.sort = sort;
+      document.querySelectorAll(".dc-sort-btn[data-sort]").forEach(function (button) {
+        var active = button.dataset.sort === sort;
+        button.classList.toggle("is-active", active);
+        button.disabled = active;
+      });
+    }
+    async function loadSortedComments(sort) {
+      sort = sort || "oldest";
+      var previous = wrap.dataset.sort || "oldest";
+      if (document.querySelector(".dc-form.reply")) closeReplyForm();
+      setActiveSort(sort);
+      var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/comments?sort=" + encodeURIComponent(sort);
+      try {
+        var res = await fetch(url, {headers: {"Accept": "application/json"}});
+        var data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (!res.ok) throw new Error(data.error || "Unable to load comments.");
+        replaceComments(data.comments || []);
+        if (data.sort) setActiveSort(data.sort);
+      } catch (_) {
+        setActiveSort(previous);
+      } finally {
+        sendHeight();
+      }
     }
     function appendSubmittedComment(comment, parentID) {
       if (!comment || !comment.id) return;
@@ -427,6 +496,8 @@
       if (btn) showReplyForm(btn.getAttribute("data-reply-to"));
       var cancel = event.target.closest("[data-cancel-reply]");
       if (cancel) closeReplyForm();
+      var sort = event.target.closest(".dc-sort-btn[data-sort]");
+      if (sort) loadSortedComments(sort.dataset.sort);
       var tab = event.target.closest("[data-editor-tab]");
       if (tab) {
         var form = tab.closest(".dc-form");

@@ -37,6 +37,7 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 	siteKey := strings.TrimSpace(r.URL.Query().Get("site"))
 	pageKey := strings.TrimSpace(r.URL.Query().Get("page"))
 	theme := normalizeTheme(r.URL.Query().Get("theme"))
+	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
 	if siteKey == "" || pageKey == "" {
 		h.renderEmbedError(w, "Comments are not configured.")
 		return
@@ -51,7 +52,7 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		h.renderEmbedError(w, "Comments are unavailable on this origin.")
 		return
 	}
-	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey)
+	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort)
 	if err != nil || page == nil {
 		h.renderEmbedError(w, "Comments are unavailable.")
 		return
@@ -62,6 +63,8 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		"Page":         page,
 		"Comments":     comments,
 		"Theme":        theme,
+		"Sort":         sort,
+		"CanReply":     page.State == domain.PageOpen,
 		"ParentOrigin": parentOrigin,
 		"EmbedToken":   h.signEmbedToken(siteKey, pageKey, parentOrigin),
 		"MaxLength":    site.MaxCommentLength,
@@ -79,6 +82,7 @@ func (h *Handlers) renderEmbedError(w http.ResponseWriter, msg string) {
 	_ = h.tmpl.ExecuteTemplate(w, "comments.html", map[string]any{
 		"Error": msg,
 		"Theme": domain.ThemeAuto,
+		"Sort":  domain.CommentSortOldest,
 	})
 }
 

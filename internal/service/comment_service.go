@@ -180,7 +180,7 @@ func publicEmailAvatarHash(email string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string) (*domain.Page, []*domain.Comment, error) {
+func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string, sort domain.CommentSort) (*domain.Page, []*domain.Comment, error) {
 	site, err := s.sites.ByKey(ctx, siteKey)
 	if err != nil || site == nil {
 		return nil, nil, err
@@ -192,11 +192,22 @@ func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string
 	if page.State == domain.PageHidden {
 		return page, nil, nil
 	}
-	comments, err := s.comments.ApprovedByPage(ctx, page.ID)
+	comments, err := s.comments.ApprovedByPage(ctx, page.ID, NormalizeCommentSort(string(sort)))
 	if err != nil {
 		return nil, nil, err
 	}
 	return page, BuildTree(comments), nil
+}
+
+func NormalizeCommentSort(raw string) domain.CommentSort {
+	switch domain.CommentSort(strings.ToLower(strings.TrimSpace(raw))) {
+	case domain.CommentSortNewest:
+		return domain.CommentSortNewest
+	case domain.CommentSortBest:
+		return domain.CommentSortBest
+	default:
+		return domain.CommentSortOldest
+	}
 }
 
 func (s *CommentService) AdminList(ctx context.Context, status, search string, siteID, pageID *int64, limit int) ([]*domain.Comment, error) {

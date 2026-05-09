@@ -65,17 +65,54 @@ body {
 }
 
 .dc-wrap { padding: 2px; }
+.dc-titlebar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 18px;
+}
 .dc-title {
   display: flex;
   gap: 8px;
   align-items: baseline;
   font-size: 18px;
-  margin: 0 0 18px;
+  margin: 0;
 }
 .dc-title span {
   color: var(--dc-muted);
   font-size: 12px;
   font-weight: 600;
+}
+.dc-sort {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius);
+  overflow: hidden;
+  background: var(--dc-card);
+}
+.dc-sort-btn {
+  appearance: none;
+  border: 0;
+  border-right: 1px solid var(--dc-border);
+  background: transparent;
+  color: var(--dc-muted);
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dc-sort-btn:last-child { border-right: 0; }
+.dc-sort-btn.is-active {
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  cursor: default;
+}
+.dc-sort-btn:not(.is-active):hover,
+.dc-sort-btn:not(.is-active):focus-visible {
+  color: var(--dc-accent);
 }
 .dc-empty, .dc-state, .dc-message, .dc-error {
   border: 1px solid var(--dc-border);
@@ -462,6 +499,10 @@ body {
 }
 
 @media (max-width: 600px) {
+  .dc-titlebar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
   .dc-comment {
     grid-template-columns: 28px minmax(0, 1fr);
     gap: 8px;
