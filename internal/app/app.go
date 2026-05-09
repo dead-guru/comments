@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -50,6 +51,30 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 
 	funcs := template.FuncMap{
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
+		"commentTime": func(t time.Time) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format("Jan 2, 2006")
+		},
+		"machineTime": func(t time.Time) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.UTC().Format(time.RFC3339)
+		},
+		"avatarInitial": func(values ...string) string {
+			for _, value := range values {
+				value = strings.TrimSpace(value)
+				if value == "" {
+					continue
+				}
+				for _, r := range value {
+					return strings.ToUpper(string(r))
+				}
+			}
+			return "?"
+		},
 		"join": func(v []string) string {
 			out := ""
 			for i, x := range v {

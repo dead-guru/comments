@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -118,8 +119,11 @@ func (s *CommentService) Create(ctx context.Context, input domain.CommentCreateI
 		}
 	}
 	if input.AuthorEmail != "" {
-		v := HashValue(s.secret, strings.ToLower(strings.TrimSpace(input.AuthorEmail)))
+		email := strings.ToLower(strings.TrimSpace(input.AuthorEmail))
+		v := HashValue(s.secret, email)
 		c.AuthorEmailHash = &v
+		avatar := publicEmailAvatarHash(email)
+		c.AuthorAvatarHash = &avatar
 	}
 	if input.AuthorWebsite != "" {
 		if u, err := url.ParseRequestURI(input.AuthorWebsite); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
@@ -169,6 +173,11 @@ func (s *CommentService) Create(ctx context.Context, input domain.CommentCreateI
 		return nil, "", err
 	}
 	return c, decision.Reason, nil
+}
+
+func publicEmailAvatarHash(email string) string {
+	sum := md5.Sum([]byte(email))
+	return hex.EncodeToString(sum[:])
 }
 
 func (s *CommentService) PublicTree(ctx context.Context, siteKey, pageKey string) (*domain.Page, []*domain.Comment, error) {

@@ -198,7 +198,7 @@ If no site exists, the dashboard prompts you to create the first site.
 
 SQLite migrations live in `migrations/`. The app enables foreign keys, WAL mode, and a busy timeout.
 
-The service never stores raw IP addresses or raw user-agent strings. IP, email, and user-agent values are HMAC-SHA256 hashes using `SERVER_SECRET`. Markdown is rendered with goldmark GFM and sanitized with bluemonday. Admin POST routes use CSRF tokens. Admin sessions use HttpOnly SameSite cookies.
+The service never stores raw IP addresses, raw user-agent strings, or raw commenter email addresses. IP, email, and user-agent values are HMAC-SHA256 hashes using `SERVER_SECRET`. If a commenter provides an email, deadcomments also stores a Gravatar-compatible MD5 avatar hash so the public widget can show an avatar without storing the email itself. Markdown is rendered with goldmark GFM and sanitized with bluemonday. Admin POST routes use CSRF tokens. Admin sessions use HttpOnly SameSite cookies.
 
 Public comments can be arbitrarily deep in storage. The iframe renders root comments normally, visually flattens deeper replies under the root, and adds a `replying to @author` label instead of indenting forever.
 

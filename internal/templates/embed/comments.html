@@ -81,11 +81,39 @@
     function authorName(comment) {
       return comment.author_display_name || comment.author_name || "Anonymous";
     }
+    function avatarInitial(comment) {
+      return authorName(comment).trim().charAt(0).toUpperCase() || "?";
+    }
+    function gravatarURL(hash) {
+      return "https://www.gravatar.com/avatar/" + encodeURIComponent(hash) + "?s=80&d=identicon";
+    }
+    function formatTime(value) {
+      var date = new Date(value || "");
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
     function renderComment(comment, root) {
       var article = document.createElement("article");
       article.className = "dc-comment" + (root ? "" : " is-reply");
       article.dataset.commentId = comment.id;
 
+      if (comment.author_avatar_hash) {
+        var avatar = document.createElement("img");
+        avatar.className = "dc-avatar";
+        avatar.src = gravatarURL(comment.author_avatar_hash);
+        avatar.alt = "";
+        avatar.loading = "lazy";
+        article.appendChild(avatar);
+      } else {
+        var fallback = document.createElement("span");
+        fallback.className = "dc-avatar dc-avatar-fallback";
+        fallback.setAttribute("aria-hidden", "true");
+        fallback.appendChild(text(avatarInitial(comment)));
+        article.appendChild(fallback);
+      }
+
+      var box = document.createElement("div");
+      box.className = "dc-comment-box";
       var header = document.createElement("header");
       header.className = "dc-head";
       var author = document.createElement("span");
@@ -117,7 +145,9 @@
       header.appendChild(author);
       var time = document.createElement("time");
       time.className = "dc-time";
-      time.appendChild(text(comment.created_at || ""));
+      time.dateTime = comment.created_at || "";
+      time.title = comment.created_at || "";
+      time.appendChild(text(formatTime(comment.created_at)));
       header.appendChild(time);
       if (comment.replying_to_author) {
         var replying = document.createElement("span");
@@ -125,12 +155,12 @@
         replying.appendChild(text("replying to @" + comment.replying_to_author));
         header.appendChild(replying);
       }
-      article.appendChild(header);
+      box.appendChild(header);
 
       var body = document.createElement("div");
       body.className = "dc-body";
       body.innerHTML = comment.body_html || "";
-      article.appendChild(body);
+      box.appendChild(body);
 
       var actions = document.createElement("div");
       actions.className = "dc-actions";
@@ -140,7 +170,8 @@
       reply.dataset.replyTo = comment.id;
       reply.appendChild(text("Reply"));
       actions.appendChild(reply);
-      article.appendChild(actions);
+      box.appendChild(actions);
+      article.appendChild(box);
       return article;
     }
     function ensureThread() {
@@ -223,6 +254,9 @@
       showFormMessage(form, true, data.message || "Comment submitted.");
       sendHeight();
     });
+    document.querySelectorAll(".dc-time[data-time]").forEach(function (node) {
+      node.textContent = formatTime(node.dataset.time) || node.textContent;
+    });
     applyProfileToAllForms();
     new ResizeObserver(sendHeight).observe(document.body);
     window.addEventListener("load", sendHeight);
@@ -235,17 +269,24 @@
 
 {{define "embed_comment"}}
 <article class="dc-comment {{if not .Root}}is-reply{{end}}" data-comment-id="{{.Comment.ID}}">
-  <header class="dc-head">
-    <span class="dc-author">
-      {{if .Comment.AuthorWebsite}}<a class="dc-author-link" href="{{.Comment.AuthorWebsite}}" target="_blank" rel="nofollow ugc noopener noreferrer">{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</a>{{else}}{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}{{end}}
-      {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
-      {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
-    </span>
-    <time class="dc-time">{{.Comment.CreatedAt}}</time>
-    {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
-  </header>
-  <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
-  {{if .CanReply}}<div class="dc-actions"><button class="dc-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button></div>{{end}}
+  {{if .Comment.AuthorAvatarHash}}
+  <img class="dc-avatar" src="https://www.gravatar.com/avatar/{{.Comment.AuthorAvatarHash}}?s=80&amp;d=identicon" alt="" loading="lazy">
+  {{else}}
+  <span class="dc-avatar dc-avatar-fallback" aria-hidden="true">{{avatarInitial .Comment.AuthorDisplayName .Comment.AuthorName}}</span>
+  {{end}}
+  <div class="dc-comment-box">
+    <header class="dc-head">
+      <span class="dc-author">
+        {{if .Comment.AuthorWebsite}}<a class="dc-author-link" href="{{.Comment.AuthorWebsite}}" target="_blank" rel="nofollow ugc noopener noreferrer">{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</a>{{else}}{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}{{end}}
+        {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
+        {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
+      </span>
+      <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{machineTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
+      {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
+    </header>
+    <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
+    {{if .CanReply}}<div class="dc-actions"><button class="dc-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button></div>{{end}}
+  </div>
 </article>
 {{range .Comment.Children}}{{template "embed_comment" dict "Comment" . "Root" false "CanReply" $.CanReply}}{{end}}
 {{end}}

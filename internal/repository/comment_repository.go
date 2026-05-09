@@ -19,9 +19,9 @@ func NewCommentRepository(db *sql.DB) *CommentRepository {
 func (r *CommentRepository) Create(ctx context.Context, c *domain.Comment) error {
 	now := nowString()
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO comments(id, site_id, page_id, parent_id, root_id, depth, path, author_name, author_display_name, identity_id, tripcode_public, tripcode_kind, author_email_hash, author_website, body_markdown, body_html, status, ip_hash, user_agent_hash, metadata_json, created_at, updated_at, edited_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		c.ID, c.SiteID, c.PageID, c.ParentID, c.RootID, c.Depth, c.Path, c.AuthorName, c.AuthorDisplayName, c.IdentityID, c.TripcodePublic, c.TripcodeKind, c.AuthorEmailHash, c.AuthorWebsite, c.BodyMarkdown, c.BodyHTML, c.Status, c.IPHash, c.UserAgentHash, c.MetadataJSON, now, now, nil)
+		INSERT INTO comments(id, site_id, page_id, parent_id, root_id, depth, path, author_name, author_display_name, identity_id, tripcode_public, tripcode_kind, author_email_hash, author_avatar_hash, author_website, body_markdown, body_html, status, ip_hash, user_agent_hash, metadata_json, created_at, updated_at, edited_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		c.ID, c.SiteID, c.PageID, c.ParentID, c.RootID, c.Depth, c.Path, c.AuthorName, c.AuthorDisplayName, c.IdentityID, c.TripcodePublic, c.TripcodeKind, c.AuthorEmailHash, c.AuthorAvatarHash, c.AuthorWebsite, c.BodyMarkdown, c.BodyHTML, c.Status, c.IPHash, c.UserAgentHash, c.MetadataJSON, now, now, nil)
 	if err != nil {
 		return err
 	}
@@ -132,10 +132,10 @@ func (r *CommentRepository) list(ctx context.Context, where string, args ...any)
 
 func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, error) {
 	var c domain.Comment
-	var parent, root, displayName, tripcodePublic, email, website, ipHash, uaHash, metadata, edited, badgeType, badgeLabel sql.NullString
+	var parent, root, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, edited, badgeType, badgeLabel sql.NullString
 	var identityID sql.NullInt64
 	var created, updated string
-	if err := scanner.Scan(&c.ID, &c.SiteID, &c.PageID, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &created, &updated, &edited); err != nil {
+	if err := scanner.Scan(&c.ID, &c.SiteID, &c.PageID, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &created, &updated, &edited); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -158,6 +158,7 @@ func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, erro
 	}
 	c.BadgeLabel = nullableString(badgeLabel)
 	c.AuthorEmailHash = nullableString(email)
+	c.AuthorAvatarHash = nullableString(avatar)
 	c.AuthorWebsite = nullableString(website)
 	c.IPHash = nullableString(ipHash)
 	c.UserAgentHash = nullableString(uaHash)
@@ -178,6 +179,7 @@ const commentSelectSQL = `
 		identities.badge_type,
 		identities.badge_label,
 		comments.author_email_hash,
+		comments.author_avatar_hash,
 		comments.author_website,
 		comments.body_markdown,
 		comments.body_html,

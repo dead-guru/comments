@@ -129,6 +129,7 @@ func toPublicComment(c *domain.Comment) *domain.PublicComment {
 		AuthorName:        c.AuthorName,
 		AuthorDisplayName: c.AuthorDisplayName,
 		AuthorWebsite:     c.AuthorWebsite,
+		AuthorAvatarHash:  c.AuthorAvatarHash,
 		TripcodePublic:    c.TripcodePublic,
 		TripcodeKind:      c.TripcodeKind,
 		BadgeType:         c.BadgeType,

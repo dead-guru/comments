@@ -23,6 +23,7 @@ type Comment struct {
 	AuthorName        string
 	AuthorDisplayName string
 	AuthorEmailHash   *string
+	AuthorAvatarHash  *string
 	AuthorWebsite     *string
 	IdentityID        *int64
 	TripcodePublic    *string
@@ -48,6 +49,7 @@ type PublicComment struct {
 	AuthorName        string           `json:"author_name"`
 	AuthorDisplayName string           `json:"author_display_name"`
 	AuthorWebsite     *string          `json:"author_website"`
+	AuthorAvatarHash  *string          `json:"author_avatar_hash"`
 	TripcodePublic    *string          `json:"tripcode_public"`
 	TripcodeKind      TripcodeKind     `json:"tripcode_kind"`
 	BadgeType         *BadgeType       `json:"badge_type"`
