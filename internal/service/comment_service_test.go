@@ -189,6 +189,64 @@ func TestAnnotationCreationUsesCommentPipeline(t *testing.T) {
 	}
 }
 
+func TestAnnotationPublicByPageIncludesApprovedReplies(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+	start := int64(11)
+	end := int64(24)
+
+	result, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: domain.CommentCreateInput{
+			SiteKey:      "test-site",
+			PageKey:      "/posts/inline",
+			PageTitle:    "Inline",
+			PageURL:      "https://blog.example/posts/inline",
+			AuthorName:   "Root",
+			BodyMarkdown: "Annotation root",
+			Origin:       "https://blog.example",
+			IP:           "203.0.113.1",
+			UserAgent:    "test",
+		},
+		Selector:     "#article",
+		SelectedText: "selected text",
+		TextStart:    &start,
+		TextEnd:      &end,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := deps.commentSvc.Create(context.Background(), domain.CommentCreateInput{
+		SiteKey:      "test-site",
+		PageKey:      "/posts/inline",
+		PageTitle:    "Inline",
+		PageURL:      "https://blog.example/posts/inline",
+		AuthorName:   "Reply",
+		BodyMarkdown: "Annotation reply",
+		ParentID:     &result.Annotation.Comment.ID,
+		Origin:       "https://blog.example",
+		IP:           "203.0.113.2",
+		UserAgent:    "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, annotations, err := deps.annotationSvc.PublicByPage(context.Background(), "test-site", "/posts/inline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(annotations) != 1 {
+		t.Fatalf("expected one annotation root, got %d", len(annotations))
+	}
+	children := annotations[0].Comment.Children
+	if len(children) != 1 || children[0].ID != reply.ID {
+		t.Fatalf("expected annotation reply attached to root, got %#v", children)
+	}
+	if children[0].Annotation != nil {
+		t.Fatalf("annotation replies should not duplicate annotation context: %#v", children[0].Annotation)
+	}
+}
+
 func TestAnnotationRequiresSelectionAnchor(t *testing.T) {
 	deps := newTestDeps(t)
 	createSite(t, deps, domain.ModerationAuto)

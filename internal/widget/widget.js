@@ -237,6 +237,10 @@
     }
     if (event.data.type === "deadcomments:annotationFocus") {
       window.postMessage(event.data, window.location.origin);
+      return;
+    }
+    if (event.data.type === "deadcomments:commentCreated") {
+      window.postMessage(event.data, window.location.origin);
     }
   });
 

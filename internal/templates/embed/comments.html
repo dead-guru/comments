@@ -491,6 +491,10 @@
       if (!wrap || !wrap.dataset.site || !wrap.dataset.page || document.hidden) return;
       loadSortedComments(wrap.dataset.sort || "oldest", {skipWhenReplyOpen: true});
     }
+    function notifyHostCommentCreated(comment) {
+      if (!parentOrigin || !comment || !comment.id) return;
+      parent.postMessage({type: "deadcomments:commentCreated", comment: comment}, parentOrigin);
+    }
     async function refreshExternalComment(comment) {
       if (!comment || !comment.id) {
         await loadSortedComments(wrap.dataset.sort || "oldest");
@@ -731,6 +735,7 @@
             appendSubmittedComment(data.comment, payload.parent_id);
           }
         }
+        notifyHostCommentCreated(data.comment);
         showFormMessage(form, true, data.message || tr("comment_submitted"));
         if (form.classList.contains("reply")) closeReplyForm();
         sendHeight();

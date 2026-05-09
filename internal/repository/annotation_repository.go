@@ -46,7 +46,78 @@ func (r *AnnotationRepository) ApprovedByPage(ctx context.Context, pageID int64)
 		}
 		out = append(out, a)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := r.attachApprovedReplies(ctx, pageID, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (r *AnnotationRepository) attachApprovedReplies(ctx context.Context, pageID int64, annotations []*domain.Annotation) error {
+	if len(annotations) == 0 {
+		return nil
+	}
+	roots := map[string]*domain.Comment{}
+	all := map[string]*domain.Comment{}
+	args := []any{pageID}
+	placeholders := ""
+	for _, a := range annotations {
+		if a == nil || a.Comment == nil || a.Comment.ID == "" {
+			continue
+		}
+		roots[a.Comment.ID] = a.Comment
+		all[a.Comment.ID] = a.Comment
+		if placeholders != "" {
+			placeholders += ","
+		}
+		placeholders += "?"
+		args = append(args, a.Comment.ID)
+	}
+	if placeholders == "" {
+		return nil
+	}
+	rows, err := r.db.QueryContext(ctx, commentSelectSQL+`
+		WHERE comments.page_id=?
+			AND comments.status='approved'
+			AND comments.parent_id IS NOT NULL
+			AND comments.root_id IN (`+placeholders+`)
+		ORDER BY comments.depth, comments.created_at, comments.id`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var replies []*domain.Comment
+	for rows.Next() {
+		c, err := scanComment(rows)
+		if err != nil {
+			return err
+		}
+		replies = append(replies, c)
+		all[c.ID] = c
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, c := range replies {
+		if c.ParentID != nil {
+			if parent := all[*c.ParentID]; parent != nil {
+				name := parent.AuthorDisplayName
+				if name == "" {
+					name = parent.AuthorName
+				}
+				c.ReplyingToAuthor = &name
+			}
+		}
+		if c.RootID == nil {
+			continue
+		}
+		if root := roots[*c.RootID]; root != nil {
+			root.Children = append(root.Children, c)
+		}
+	}
+	return nil
 }
 
 func AnnotationTextHash(value string) string {
