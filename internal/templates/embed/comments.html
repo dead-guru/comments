@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="/static/embed.css">
 </head>
 <body>
-  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}">
+  <main class="dc-wrap" data-site="{{.SiteKey}}" data-page="{{.PageKey}}" data-origin="{{.ParentOrigin}}" data-title="{{.PageTitle}}" data-url="{{.PageURL}}" data-max-length="{{.MaxLength}}">
     {{if .Error}}
       <div class="dc-error">{{.Error}}</div>
     {{else if eq .Page.State "hidden"}}
@@ -21,7 +21,7 @@
       <div class="dc-empty">No comments yet.</div>
       {{end}}
       {{if eq .Page.State "open"}}
-        {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken}}
+        {{template "embed_form" dict "ParentID" "" "Reply" false "EmbedToken" .EmbedToken "MaxLength" .MaxLength}}
       {{else if eq .Page.State "locked"}}
         <p class="dc-state">Comments are locked.</p>
       {{else if eq .Page.State "archived"}}
@@ -74,9 +74,6 @@
         if (input && !input.value && profile[name]) input.value = profile[name];
       });
     }
-    function applyProfileToAllForms() {
-      document.querySelectorAll(".dc-form").forEach(applyProfile);
-    }
     function text(value) {
       return document.createTextNode(value || "");
     }
@@ -125,8 +122,9 @@
     }
     function renderComment(comment, root) {
       var article = document.createElement("article");
-      article.className = "dc-comment" + (root ? "" : " is-reply");
+      article.className = "dc-comment" + (root ? "" : " is-reply") + (comment.status === "pending" ? " is-pending" : "");
       article.dataset.commentId = comment.id;
+      article.id = "dc-" + comment.id;
 
       if (comment.author_avatar_hash) {
         var avatar = document.createElement("img");
@@ -173,6 +171,12 @@
         badge.appendChild(text(comment.badge_label || comment.badge_type));
         author.appendChild(badge);
       }
+      if (comment.status === "pending") {
+        var pending = document.createElement("span");
+        pending.className = "dc-badge dc-badge-pending";
+        pending.appendChild(text("pending review"));
+        author.appendChild(pending);
+      }
       header.appendChild(author);
       var meta = document.createElement("span");
       meta.className = "dc-meta";
@@ -183,8 +187,12 @@
       time.appendChild(text(formatTime(comment.created_at)));
       meta.appendChild(time);
       if (comment.replying_to_author) {
-        var replying = document.createElement("span");
+        var replying = document.createElement(comment.parent_id ? "button" : "span");
         replying.className = "dc-replying";
+        if (comment.parent_id) {
+          replying.type = "button";
+          replying.dataset.commentJump = comment.parent_id;
+        }
         replying.appendChild(text("replying to @" + comment.replying_to_author));
         meta.appendChild(replying);
       }
@@ -204,6 +212,12 @@
       reply.dataset.replyTo = comment.id;
       reply.appendChild(text("Reply"));
       actions.appendChild(reply);
+      var copy = document.createElement("button");
+      copy.className = "dc-action-btn";
+      copy.type = "button";
+      copy.dataset.copyLink = comment.id;
+      copy.appendChild(text("Copy link"));
+      actions.appendChild(copy);
       box.appendChild(actions);
       article.appendChild(box);
       return article;
@@ -227,22 +241,134 @@
       var node = renderComment(comment, !parentID);
       if (!parentID) {
         thread.appendChild(node);
+      } else {
+        var parent = document.querySelector('[data-comment-id="' + CSS.escape(parentID) + '"]');
+        if (parent) {
+          var root = parent;
+          while (root.classList.contains("is-reply") && root.previousElementSibling) {
+            root = root.previousElementSibling;
+          }
+          var insertionPoint = root;
+          while (insertionPoint.nextElementSibling && insertionPoint.nextElementSibling.classList.contains("is-reply")) {
+            insertionPoint = insertionPoint.nextElementSibling;
+          }
+          insertionPoint.after(node);
+        } else {
+          thread.appendChild(node);
+        }
+      }
+      highlightComment(comment.id);
+    }
+    function commentURL(id) {
+      try {
+        var base = new URL(wrap.dataset.url || parentOrigin || window.location.href);
+        base.hash = "dc-" + id;
+        return base.toString();
+      } catch (_) {
+        return "#dc-" + id;
+      }
+    }
+    function highlightComment(id) {
+      if (!id) return false;
+      var node = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"]');
+      if (!node) return false;
+      node.scrollIntoView({block: "center", behavior: "smooth"});
+      node.classList.add("is-highlighted");
+      window.setTimeout(function () { node.classList.remove("is-highlighted"); }, 1800);
+      if (parentOrigin) parent.postMessage({type: "deadcomments:scrollIntoView"}, parentOrigin);
+      return true;
+    }
+    function requestedCommentID() {
+      var hash = "";
+      try {
+        hash = new URL(wrap.dataset.url || "").hash;
+      } catch (_) {}
+      if (!hash) hash = window.location.hash || "";
+      if (hash.indexOf("#dc-") !== 0) return "";
+      return decodeURIComponent(hash.slice(4));
+    }
+    async function copyCommentLink(id, button) {
+      var link = commentURL(id);
+      try {
+        await navigator.clipboard.writeText(link);
+        if (button) {
+          var old = button.textContent;
+          button.textContent = "Copied";
+          window.setTimeout(function () { button.textContent = old; }, 1200);
+        }
+      } catch (_) {
+        window.prompt("Copy comment link", link);
+      }
+    }
+    function commentLength(form) {
+      var input = form.querySelector('[name="body_markdown"]');
+      return input ? Array.from(input.value || "").length : 0;
+    }
+    function updateCharacterCount(form) {
+      var counter = form.querySelector("[data-char-count]");
+      var input = form.querySelector('[name="body_markdown"]');
+      if (!counter || !input) return;
+      var max = Number(input.getAttribute("maxlength") || wrap.dataset.maxLength || 0);
+      var length = commentLength(form);
+      counter.textContent = max ? length + " / " + max : String(length);
+      counter.classList.toggle("is-near-limit", max > 0 && length >= Math.floor(max * 0.9));
+      counter.classList.toggle("is-at-limit", max > 0 && length >= max);
+    }
+    function setEditorMode(form, mode) {
+      var write = form.querySelector("[data-write-panel]");
+      var preview = form.querySelector("[data-preview-panel]");
+      var body = form.querySelector('[name="body_markdown"]');
+      form.querySelectorAll("[data-editor-tab]").forEach(function (tab) {
+        var active = tab.dataset.editorTab === mode;
+        tab.classList.toggle("is-active", active);
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      if (write) write.hidden = mode !== "write";
+      if (preview) preview.hidden = mode !== "preview";
+      if (body) body.required = mode === "write";
+      if (mode === "preview") loadPreview(form);
+      sendHeight();
+    }
+    async function loadPreview(form) {
+      var preview = form.querySelector("[data-preview-body]");
+      var body = form.querySelector('[name="body_markdown"]');
+      if (!preview || !body) return;
+      if (!body.value.trim()) {
+        preview.textContent = "Nothing to preview.";
         return;
       }
-      var parent = document.querySelector('[data-comment-id="' + CSS.escape(parentID) + '"]');
-      if (parent) {
-        var root = parent;
-        while (root.classList.contains("is-reply") && root.previousElementSibling) {
-          root = root.previousElementSibling;
+      preview.textContent = "Rendering preview...";
+      var payload = {
+        body_markdown: body.value,
+        parent_origin: wrap.dataset.origin || "",
+        embed_token: form.querySelector('[name="embed_token"]').value || ""
+      };
+      var url = "/api/v1/sites/" + encodeURIComponent(wrap.dataset.site) + "/pages/" + encodeURIComponent(wrap.dataset.page) + "/preview";
+      try {
+        var res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
+        var data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (!res.ok) {
+          preview.textContent = data.error || "Preview unavailable.";
+          return;
         }
-        var insertionPoint = root;
-        while (insertionPoint.nextElementSibling && insertionPoint.nextElementSibling.classList.contains("is-reply")) {
-          insertionPoint = insertionPoint.nextElementSibling;
-        }
-        insertionPoint.after(node);
-      } else {
-        thread.appendChild(node);
+        preview.innerHTML = data.body_html || "<p>Nothing to preview.</p>";
+      } catch (_) {
+        preview.textContent = "Preview unavailable.";
+      } finally {
+        sendHeight();
       }
+    }
+    function schedulePreview(form) {
+      if (!form.querySelector('[data-editor-tab="preview"].is-active')) return;
+      window.clearTimeout(form._dcPreviewTimer);
+      form._dcPreviewTimer = window.setTimeout(function () { loadPreview(form); }, 220);
+    }
+    function setupForm(form) {
+      if (!form || form.dataset.ready === "true") return;
+      form.dataset.ready = "true";
+      applyProfile(form);
+      updateCharacterCount(form);
     }
     function showFormMessage(form, ok, message) {
       var old = form.parentElement.querySelector(".dc-form-message");
@@ -274,7 +400,7 @@
       if (base) base.hidden = true;
       var node = tpl.content.cloneNode(true);
       node.querySelector('[name="parent_id"]').value = id;
-      applyProfile(node.querySelector(".dc-form"));
+      setupForm(node.querySelector(".dc-form"));
       target.appendChild(node);
       sendHeight();
     }
@@ -283,6 +409,23 @@
       if (btn) showReplyForm(btn.getAttribute("data-reply-to"));
       var cancel = event.target.closest("[data-cancel-reply]");
       if (cancel) closeReplyForm();
+      var tab = event.target.closest("[data-editor-tab]");
+      if (tab) {
+        var form = tab.closest(".dc-form");
+        if (form) setEditorMode(form, tab.dataset.editorTab);
+      }
+      var jump = event.target.closest("[data-comment-jump]");
+      if (jump) highlightComment(jump.getAttribute("data-comment-jump"));
+      var copy = event.target.closest("[data-copy-link]");
+      if (copy) copyCommentLink(copy.getAttribute("data-copy-link"), copy);
+    });
+    document.addEventListener("input", function (event) {
+      var form = event.target.closest(".dc-form");
+      if (!form) return;
+      if (event.target.matches('[name="body_markdown"]')) {
+        updateCharacterCount(form);
+        schedulePreview(form);
+      }
     });
     document.addEventListener("submit", async function (event) {
       var form = event.target.closest(".dc-form");
@@ -305,7 +448,7 @@
         showFormMessage(form, false, data.message || data.error || "Unable to submit comment.");
         return;
       }
-      if (data.status === "approved") appendSubmittedComment(data.comment, payload.parent_id);
+      if (data.status === "approved" || data.status === "pending") appendSubmittedComment(data.comment, payload.parent_id);
       showFormMessage(form, true, data.message || "Comment submitted.");
       if (form.classList.contains("reply")) closeReplyForm();
       sendHeight();
@@ -314,18 +457,19 @@
       node.textContent = formatTime(node.dataset.time) || node.textContent;
       node.title = fullTime(node.dataset.time) || node.title;
     });
-    applyProfileToAllForms();
+    document.querySelectorAll(".dc-form").forEach(setupForm);
+    window.setTimeout(function () { highlightComment(requestedCommentID()); }, 120);
     new ResizeObserver(sendHeight).observe(document.body);
     window.addEventListener("load", sendHeight);
     sendHeight();
   })();
   </script>
-  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true "EmbedToken" .EmbedToken}}</template>
+  <template id="reply-template">{{template "embed_form" dict "ParentID" "" "Reply" true "EmbedToken" .EmbedToken "MaxLength" .MaxLength}}</template>
 </body>
 </html>
 
 {{define "embed_comment"}}
-<article class="dc-comment {{if not .Root}}is-reply{{end}}" data-comment-id="{{.Comment.ID}}">
+<article class="dc-comment {{if not .Root}}is-reply{{end}}" id="dc-{{.Comment.ID}}" data-comment-id="{{.Comment.ID}}">
   {{if .Comment.AuthorAvatarHash}}
   <img class="dc-avatar" src="https://www.gravatar.com/avatar/{{.Comment.AuthorAvatarHash}}?s=80&amp;d=identicon" alt="" loading="lazy">
   {{else}}
@@ -337,14 +481,18 @@
         {{if .Comment.AuthorWebsite}}<a class="dc-author-link" href="{{.Comment.AuthorWebsite}}" target="_blank" rel="nofollow ugc noopener noreferrer">{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}</a>{{else}}{{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}{{end}}
         {{if eq .Comment.TripcodeKind "anonymous"}}<span class="dc-tripcode">◆{{.Comment.TripcodePublic}}</span>{{end}}
         {{if and (eq .Comment.TripcodeKind "reserved") .Comment.BadgeType}}<span class="dc-badge dc-badge-{{.Comment.BadgeType}}">{{if .Comment.BadgeLabel}}{{.Comment.BadgeLabel}}{{else}}{{.Comment.BadgeType}}{{end}}</span>{{end}}
+        {{if eq .Comment.Status "pending"}}<span class="dc-badge dc-badge-pending">pending review</span>{{end}}
       </span>
       <span class="dc-meta">
         <time class="dc-time" datetime="{{machineTime .Comment.CreatedAt}}" data-time="{{machineTime .Comment.CreatedAt}}" title="{{fullTime .Comment.CreatedAt}}">{{commentTime .Comment.CreatedAt}}</time>
-        {{if .Comment.ReplyingToAuthor}}<span class="dc-replying">replying to @{{.Comment.ReplyingToAuthor}}</span>{{end}}
+        {{if .Comment.ReplyingToAuthor}}<button class="dc-replying" type="button" data-comment-jump="{{.Comment.ParentID}}">replying to @{{.Comment.ReplyingToAuthor}}</button>{{end}}
       </span>
     </header>
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
-    {{if .CanReply}}<div class="dc-actions"><button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button></div>{{end}}
+    <div class="dc-actions">
+      {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}">Reply</button>{{end}}
+      <button class="dc-action-btn" type="button" data-copy-link="{{.Comment.ID}}">Copy link</button>
+    </div>
   </div>
 </article>
 {{range .Comment.Children}}{{template "embed_comment" dict "Comment" . "Root" false "CanReply" $.CanReply}}{{end}}
@@ -371,7 +519,17 @@
   {{if not .Reply}}
   <label class="dc-field"><span>Website (optional)</span><input class="dc-input" name="author_website" type="url"></label>
   {{end}}
-  <label class="dc-field"><span>Comment</span><textarea class="dc-textarea" name="body_markdown" required></textarea></label>
+  <div class="dc-editor">
+    <div class="dc-editor-tabs" role="tablist" aria-label="Comment editor">
+      <button class="dc-editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="write">Write</button>
+      <button class="dc-editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="preview">Preview</button>
+    </div>
+    <label class="dc-field" data-write-panel><span>Comment</span><textarea class="dc-textarea" name="body_markdown" required maxlength="{{.MaxLength}}"></textarea></label>
+    <div class="dc-preview" data-preview-panel hidden>
+      <div class="dc-preview-body dc-body" data-preview-body>Nothing to preview.</div>
+    </div>
+    <div class="dc-editor-foot"><small data-char-count>0 / {{.MaxLength}}</small></div>
+  </div>
   <div class="dc-submit-row">
     <button class="dc-btn primary">{{if .Reply}}Submit reply{{else}}Submit comment{{end}}</button>
     {{if .Reply}}<button class="dc-btn subtle" type="button" data-cancel-reply>Cancel</button>{{end}}

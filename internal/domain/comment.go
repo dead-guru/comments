@@ -56,6 +56,7 @@ type PublicComment struct {
 	BadgeType         *BadgeType       `json:"badge_type"`
 	BadgeLabel        *string          `json:"badge_label"`
 	BodyHTML          string           `json:"body_html"`
+	Status            CommentStatus    `json:"status"`
 	CreatedAt         time.Time        `json:"created_at"`
 	EditedAt          *time.Time       `json:"edited_at"`
 	ReplyingToAuthor  *string          `json:"replying_to_author"`

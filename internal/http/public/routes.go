@@ -14,6 +14,7 @@ func Routes(r chi.Router, h *Handlers, limiter *middleware.RateLimiter) {
 	r.Get("/embed/comments", h.EmbedComments)
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Get("/sites/{site_key}/pages/{page_key:.*}/comments", h.APIListComments)
+		api.Post("/sites/{site_key}/pages/{page_key:.*}/preview", h.APIPreviewComment)
 		api.With(limiter.Middleware).Post("/sites/{site_key}/pages/{page_key:.*}/comments", h.APICreateComment)
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

@@ -134,7 +134,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 	r.Get("/status", health.Status)
 	r.Handle("/metrics", metrics.Handler())
 
-	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, tmpl, cfg.ServerSecret)
+	publicHandlers := publichttp.NewHandlers(siteSvc, pageSvc, commentSvc, md, tmpl, cfg.ServerSecret)
 	publichttp.Routes(r, publicHandlers, dcmiddleware.NewRateLimiter(30, time.Minute))
 
 	adminHandlers := adminhttp.NewHandlers(siteSvc, pageSvc, commentSvc, moderationSvc, identitySvc, eventSvc, authSvc, tmpl, csrf, cfg.SecureCookies)

@@ -91,6 +91,40 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, response, status)
 }
 
+func (h *Handlers) APIPreviewComment(w http.ResponseWriter, r *http.Request) {
+	siteKey := chi.URLParam(r, "site_key")
+	pageKey := decodedParam(chi.URLParam(r, "page_key"))
+	var payload struct {
+		BodyMarkdown string `json:"body_markdown"`
+		ParentOrigin string `json:"parent_origin"`
+		EmbedToken   string `json:"embed_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSONError(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	site, err := h.sites.ByKey(r.Context(), siteKey)
+	if err != nil || site == nil {
+		writeJSONError(w, "site not found", http.StatusNotFound)
+		return
+	}
+	origin := h.trustedCommentOrigin(r, siteKey, pageKey, payload.ParentOrigin, payload.EmbedToken)
+	if !h.sites.OriginAllowed(site, origin) {
+		writeJSONError(w, "origin is not allowed for this site", http.StatusForbidden)
+		return
+	}
+	if len([]rune(payload.BodyMarkdown)) > site.MaxCommentLength {
+		writeJSONError(w, "comment is too long", http.StatusBadRequest)
+		return
+	}
+	bodyHTML, err := h.markdown.Render(payload.BodyMarkdown)
+	if err != nil {
+		writeJSONError(w, "preview unavailable", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"body_html": bodyHTML}, http.StatusOK)
+}
+
 func createMessage(status domain.CommentStatus, reason string) string {
 	if status == domain.CommentApproved {
 		return "Comment posted."
@@ -192,6 +226,7 @@ func toPublicComment(c *domain.Comment) *domain.PublicComment {
 		BadgeType:         c.BadgeType,
 		BadgeLabel:        c.BadgeLabel,
 		BodyHTML:          c.BodyHTML,
+		Status:            c.Status,
 		CreatedAt:         c.CreatedAt,
 		EditedAt:          c.EditedAt,
 		ReplyingToAuthor:  c.ReplyingToAuthor,

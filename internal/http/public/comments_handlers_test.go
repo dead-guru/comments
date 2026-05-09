@@ -138,6 +138,54 @@ func TestAPICreateCommentAcceptsValidEmbedTokenParentOrigin(t *testing.T) {
 	}
 }
 
+func TestAPIPreviewCommentRendersSanitizedMarkdown(t *testing.T) {
+	h := newPublicHandlerTestDeps(t)
+	router := newPublicCommentsRouter(h, nil)
+	payload := map[string]any{
+		"body_markdown": "**ok**\n\n<script>alert(1)</script>",
+		"parent_origin": "https://allowed.example",
+		"embed_token":   h.signEmbedToken("test-site", "/posts/one", "https://allowed.example"),
+	}
+
+	req := newJSONPreviewRequest(t, payload)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected preview response, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		BodyHTML string `json:"body_html"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains([]byte(response.BodyHTML), []byte("<strong>ok</strong>")) {
+		t.Fatalf("expected markdown rendering, got %s", response.BodyHTML)
+	}
+	if bytes.Contains(bytes.ToLower([]byte(response.BodyHTML)), []byte("<script")) || bytes.Contains([]byte(response.BodyHTML), []byte("alert(1)")) {
+		t.Fatalf("expected sanitized preview, got %s", response.BodyHTML)
+	}
+}
+
+func TestAPIPreviewCommentDoesNotTrustForgedParentOrigin(t *testing.T) {
+	h := newPublicHandlerTestDeps(t)
+	router := newPublicCommentsRouter(h, nil)
+	payload := map[string]any{
+		"body_markdown": "Preview",
+		"parent_origin": "https://allowed.example",
+	}
+
+	req := newJSONPreviewRequest(t, payload)
+	req.Header.Set("Origin", "https://evil.example")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected forged parent_origin to be rejected, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAPICreateCommentRateLimitMiddlewareChain(t *testing.T) {
 	h := newPublicHandlerTestDeps(t)
 	limiter := middleware.NewRateLimiter(1, time.Hour)
@@ -206,7 +254,7 @@ func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 		t.Fatal(err)
 	}
 
-	h := NewHandlers(siteSvc, pageSvc, commentSvc, template.New("test"), "embed-secret")
+	h := NewHandlers(siteSvc, pageSvc, commentSvc, markdownSvc, template.New("test"), "embed-secret")
 	return h
 }
 
@@ -214,9 +262,11 @@ func newPublicCommentsRouter(h *Handlers, limiter *middleware.RateLimiter) http.
 	router := chi.NewRouter()
 	if limiter == nil {
 		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APICreateComment)
+		router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/preview", h.APIPreviewComment)
 		return router
 	}
 	router.With(limiter.Middleware).Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APICreateComment)
+	router.Post("/api/v1/sites/{site_key}/pages/{page_key:.*}/preview", h.APIPreviewComment)
 	return router
 }
 
@@ -227,6 +277,19 @@ func newJSONCommentRequest(t *testing.T, payload map[string]any) *http.Request {
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sites/test-site/pages/%2Fposts%2Fone/comments", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://comments.localhost")
+	req.RemoteAddr = "203.0.113.10:12345"
+	return req
+}
+
+func newJSONPreviewRequest(t *testing.T, payload map[string]any) *http.Request {
+	t.Helper()
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sites/test-site/pages/%2Fposts%2Fone/preview", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://comments.localhost")
 	req.RemoteAddr = "203.0.113.10:12345"

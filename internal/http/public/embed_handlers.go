@@ -14,12 +14,13 @@ type Handlers struct {
 	sites       *service.SiteService
 	pages       *service.PageService
 	comments    *service.CommentService
+	markdown    *service.MarkdownService
 	tmpl        *template.Template
 	embedSecret string
 }
 
-func NewHandlers(sites *service.SiteService, pages *service.PageService, comments *service.CommentService, tmpl *template.Template, embedSecret string) *Handlers {
-	return &Handlers{sites: sites, pages: pages, comments: comments, tmpl: tmpl, embedSecret: embedSecret}
+func NewHandlers(sites *service.SiteService, pages *service.PageService, comments *service.CommentService, markdown *service.MarkdownService, tmpl *template.Template, embedSecret string) *Handlers {
+	return &Handlers{sites: sites, pages: pages, comments: comments, markdown: markdown, tmpl: tmpl, embedSecret: embedSecret}
 }
 
 func (h *Handlers) WidgetJS(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +64,7 @@ func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
 		"Theme":        theme,
 		"ParentOrigin": parentOrigin,
 		"EmbedToken":   h.signEmbedToken(siteKey, pageKey, parentOrigin),
+		"MaxLength":    site.MaxCommentLength,
 		"PageTitle":    r.URL.Query().Get("title"),
 		"PageURL":      r.URL.Query().Get("url"),
 	}

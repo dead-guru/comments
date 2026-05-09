@@ -33,9 +33,15 @@
 
   window.addEventListener("message", function (event) {
     if (event.origin !== src.origin) return;
-    if (!event.data || event.data.type !== "deadcomments:height") return;
-    var height = Number(event.data.height);
-    if (height > 0 && height < 20000) iframe.style.height = height + "px";
+    if (!event.data) return;
+    if (event.data.type === "deadcomments:height") {
+      var height = Number(event.data.height);
+      if (height > 0 && height < 20000) iframe.style.height = height + "px";
+      return;
+    }
+    if (event.data.type === "deadcomments:scrollIntoView") {
+      iframe.scrollIntoView({block: "center", behavior: "smooth"});
+    }
   });
 
   target.appendChild(iframe);
