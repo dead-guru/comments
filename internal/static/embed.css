@@ -1,5 +1,6 @@
 :root {
-  --dc-bg: #ffffff;
+  --dc-bg: transparent;
+  --dc-surface: #ffffff;
   --dc-text: #202124;
   --dc-muted: #667085;
   --dc-border: #d0d7de;
@@ -12,7 +13,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] {
-    --dc-bg: #0d1117;
+    --dc-surface: #0d1117;
     --dc-text: #e6edf3;
     --dc-muted: #8b949e;
     --dc-border: #30363d;
@@ -23,7 +24,7 @@
 }
 
 :root[data-theme="dark"] {
-  --dc-bg: #0d1117;
+  --dc-surface: #0d1117;
   --dc-text: #e6edf3;
   --dc-muted: #8b949e;
   --dc-border: #30363d;
@@ -42,7 +43,7 @@
 
 body {
   margin: 0;
-  background: var(--dc-bg);
+  background: transparent;
   color: var(--dc-text);
   font: 14px/1.5 var(--dc-font);
 }
@@ -62,7 +63,7 @@ body {
 .dc-comment {
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius);
-  background: var(--dc-bg);
+  background: var(--dc-surface);
 }
 .dc-comment.is-reply { margin-left: 28px; }
 .dc-head {
@@ -109,7 +110,7 @@ body {
   appearance: none;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius);
-  background: var(--dc-bg);
+  background: var(--dc-surface);
   color: var(--dc-text);
   padding: 6px 10px;
   font: inherit;
@@ -137,7 +138,7 @@ body {
   width: 100%;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius);
-  background: var(--dc-bg);
+  background: var(--dc-surface);
   color: var(--dc-text);
   padding: 8px 9px;
   font: inherit;
