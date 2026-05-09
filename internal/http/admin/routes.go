@@ -32,6 +32,7 @@ func Routes(r chi.Router, h *Handlers, auth *service.AuthService, csrf *middlewa
 			admin.Post("/admin/pages/{id}/state", h.PageState)
 			admin.Get("/admin/comments", h.Comments)
 			admin.Get("/admin/comments/pending", h.PendingComments)
+			admin.Post("/admin/comments/bulk", h.BulkComments)
 			admin.Get("/admin/comments/{id}", h.CommentDetail)
 			admin.Post("/admin/comments/{id}/approve", h.ApproveComment)
 			admin.Post("/admin/comments/{id}/reject", h.RejectComment)

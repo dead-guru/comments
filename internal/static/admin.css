@@ -51,8 +51,43 @@ input[type="checkbox"] { width: auto; }
 textarea { min-height: 110px; resize: vertical; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 button, .button { appearance: none; border: 1px solid var(--border); background: #fff; color: var(--text); border-radius: var(--radius); padding: 7px 10px; font: inherit; cursor: pointer; display: inline-block; }
+button:disabled { opacity: .55; cursor: not-allowed; }
 .primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .danger { border-color: var(--danger); color: var(--danger); }
+.compact { padding: 4px 7px; font-size: 12px; }
+.bulk-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.bulk-toolbar select { width: auto; min-width: 140px; }
+.comments-table .check-cell { width: 38px; text-align: center; }
+.comments-table tbody tr.is-current { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: -2px; background: #f8fbff; }
+.comment-excerpt {
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-actions {
+  min-width: 260px;
+}
+.row-actions form {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.keyboard-help kbd {
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: #fff;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
 .status-approved { color: var(--ok); }
 .status-pending { color: #b54708; }
 .status-spam, .status-rejected, .status-deleted { color: var(--danger); }

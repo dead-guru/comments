@@ -1,20 +1,33 @@
 {{template "admin_head" .}}
 <h1>Bans</h1>
-<section class="panel">
-  <h2>Add IP hash ban</h2>
+<details class="panel">
+  <summary><strong>Advanced: add IP hash ban manually</strong></summary>
+  <p class="muted">Most bans should start from a suspicious comment using "Ban IP + mark spam", so the hash is filled from the stored comment metadata. Use this form only when you already have a hash.</p>
   <form class="form" method="post" action="/admin/bans/ip">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-    <div class="field"><label>Site ID (optional)</label><input name="site_id"></div>
+    <div class="field">
+      <label>Site scope</label>
+      <select name="site_id">
+        <option value="">Global</option>
+        {{range .Sites}}<option value="{{.ID}}">{{.Name}} ({{.Key}})</option>{{end}}
+      </select>
+    </div>
     <div class="field"><label>IP hash</label><input name="ip_hash" required></div>
     <div class="field"><label>Reason</label><input name="reason"></div>
     <button class="primary">Add IP ban</button>
   </form>
-</section>
+</details>
 <section class="panel">
   <h2>Add word ban</h2>
   <form class="form" method="post" action="/admin/bans/word">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-    <div class="field"><label>Site ID (optional)</label><input name="site_id"></div>
+    <div class="field">
+      <label>Site scope</label>
+      <select name="site_id">
+        <option value="">Global</option>
+        {{range .Sites}}<option value="{{.ID}}">{{.Name}} ({{.Key}})</option>{{end}}
+      </select>
+    </div>
     <div class="field"><label>Pattern</label><input name="pattern" required></div>
     <div class="field"><label>Action</label><select name="action"><option>pending</option><option>reject</option><option>spam</option></select></div>
     <button class="primary">Add word ban</button>

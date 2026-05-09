@@ -12,5 +12,5 @@
   </div>
 </section>
 <h2>Comments</h2>
-{{template "comments_table" .Comments}}
+{{template "comments_table" dict "Comments" .Comments "CSRFToken" .CSRFToken "Bulk" true "Inline" true "ReturnTo" .CurrentPath}}
 {{template "admin_foot" .}}

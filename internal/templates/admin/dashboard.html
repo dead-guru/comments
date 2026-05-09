@@ -15,7 +15,7 @@
   <div class="metric"><span class="muted">Spam today</span><strong>{{.SpamToday}}</strong></div>
 </section>
 <h2>Recent pending comments</h2>
-{{template "comments_table" .RecentPending}}
+{{template "comments_table" dict "Comments" .RecentPending "CSRFToken" .CSRFToken "Bulk" false "Inline" true "ReturnTo" .CurrentPath}}
 <h2>Recent pages</h2>
 {{template "pages_table" .RecentPages}}
 <h2>Recent events</h2>

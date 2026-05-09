@@ -102,6 +102,7 @@ func (h *Handlers) render(w http.ResponseWriter, r *http.Request, name string, d
 	}
 	data["CSRFToken"] = h.csrf.Token(w, r)
 	data["Admin"] = middleware.AdminFromContext(r.Context())
+	data["CurrentPath"] = r.URL.RequestURI()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	name = strings.TrimPrefix(name, "admin/")
 	if err := h.tmpl.ExecuteTemplate(w, name, data); err != nil {

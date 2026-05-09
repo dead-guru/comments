@@ -8,5 +8,6 @@
   </select>
   <button>Filter</button>
 </form>
-{{template "comments_table" .Comments}}
+<p class="muted keyboard-help">Shortcuts: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>a</kbd> approve, <kbd>s</kbd> spam, <kbd>r</kbd> reject.</p>
+{{template "comments_table" dict "Comments" .Comments "CSRFToken" .CSRFToken "Bulk" true "Inline" true "ReturnTo" .CurrentPath}}
 {{template "admin_foot" .}}

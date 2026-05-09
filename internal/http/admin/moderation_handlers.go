@@ -11,7 +11,8 @@ import (
 func (h *Handlers) Bans(w http.ResponseWriter, r *http.Request) {
 	ipBans, _ := h.moderation.ListIPBans(r.Context())
 	wordBans, _ := h.moderation.ListWordBans(r.Context())
-	h.render(w, r, "admin/bans.html", map[string]any{"IPBans": ipBans, "WordBans": wordBans})
+	sites, _ := h.sites.List(r.Context())
+	h.render(w, r, "admin/bans.html", map[string]any{"IPBans": ipBans, "WordBans": wordBans, "Sites": sites})
 }
 
 func (h *Handlers) CreateIPBan(w http.ResponseWriter, r *http.Request) {
