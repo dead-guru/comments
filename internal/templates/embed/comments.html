@@ -383,10 +383,19 @@
       if (!id) return false;
       var node = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"]');
       if (!node) return false;
-      node.scrollIntoView({block: "center", behavior: "smooth"});
       node.classList.add("is-highlighted");
       window.setTimeout(function () { node.classList.remove("is-highlighted"); }, 1800);
-      if (parentOrigin) parent.postMessage({type: "deadcomments:scrollIntoView"}, parentOrigin);
+      if (parentOrigin) {
+        var rect = node.getBoundingClientRect();
+        postHeight();
+        parent.postMessage({
+          type: "deadcomments:scrollIntoView",
+          top: rect.top + window.pageYOffset,
+          height: rect.height
+        }, parentOrigin);
+      } else {
+        node.scrollIntoView({block: "center", behavior: "smooth"});
+      }
       return true;
     }
     function requestedCommentID() {

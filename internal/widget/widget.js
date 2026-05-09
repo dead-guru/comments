@@ -147,7 +147,15 @@
       return;
     }
     if (event.data.type === "deadcomments:scrollIntoView") {
-      iframe.scrollIntoView({block: "center", behavior: "smooth"});
+      var top = Number(event.data.top);
+      var itemHeight = Number(event.data.height) || 0;
+      if (Number.isFinite(top) && top >= 0) {
+        var iframeRect = iframe.getBoundingClientRect();
+        var targetY = window.pageYOffset + iframeRect.top + top - Math.max(24, (window.innerHeight - itemHeight) / 2);
+        window.scrollTo({top: Math.max(0, targetY), behavior: "smooth"});
+      } else {
+        iframe.scrollIntoView({block: "center", behavior: "smooth"});
+      }
     }
   });
 
