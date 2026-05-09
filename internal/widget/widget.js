@@ -1,6 +1,17 @@
 (function () {
   "use strict";
 
+  var MIN_SCROLL_MARGIN_PX = 24;
+  // Defensive cap for postMessage-driven resizing to avoid runaway layout
+  // from malformed or maliciously large height values.
+  var MAX_IFRAME_HEIGHT_PX = 20000;
+  // sRGB relative luminance coefficients from WCAG contrast calculation.
+  var SRGB_LUMINANCE_R_COEFFICIENT = 0.2126;
+  var SRGB_LUMINANCE_G_COEFFICIENT = 0.7152;
+  var SRGB_LUMINANCE_B_COEFFICIENT = 0.0722;
+  // Keep in sync with internal/i18n/embed.go.
+  var SUPPORTED_LOCALES = ["en", "uk"];
+
   var script = document.currentScript;
   if (!script) return;
 
@@ -60,7 +71,7 @@
     var r = rgb.r / 255;
     var g = rgb.g / 255;
     var b = rgb.b / 255;
-    var luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    var luminance = SRGB_LUMINANCE_R_COEFFICIENT * r + SRGB_LUMINANCE_G_COEFFICIENT * g + SRGB_LUMINANCE_B_COEFFICIENT * b;
     return luminance < 0.5;
   }
   function inheritedTheme() {
@@ -106,8 +117,9 @@
   var inherited = theme === "inherit" ? inheritedTheme() : null;
 
   function normalizeLocale(value) {
-    value = String(value || "").toLowerCase();
-    return value.indexOf("uk") === 0 ? "uk" : "en";
+    var normalized = String(value || "").toLowerCase().replace(/_/g, "-");
+    var language = normalized.split("-")[0];
+    return SUPPORTED_LOCALES.indexOf(language) !== -1 ? language : "en";
   }
   function loadingText(value, key) {
     var catalog = {
@@ -157,7 +169,7 @@
     if (!event.data) return;
     if (event.data.type === "deadcomments:height") {
       var height = Number(event.data.height);
-      if (height > 0 && height < 20000) iframe.style.height = Math.max(minHeight, height) + "px";
+      if (height > 0 && height < MAX_IFRAME_HEIGHT_PX) iframe.style.height = Math.max(minHeight, height) + "px";
       return;
     }
     if (event.data.type === "deadcomments:scrollIntoView") {
@@ -165,7 +177,7 @@
       var itemHeight = Number(event.data.height) || 0;
       if (Number.isFinite(top) && top >= 0) {
         var iframeRect = iframe.getBoundingClientRect();
-        var targetY = window.pageYOffset + iframeRect.top + top - Math.max(24, (window.innerHeight - itemHeight) / 2);
+        var targetY = window.pageYOffset + iframeRect.top + top - Math.max(MIN_SCROLL_MARGIN_PX, (window.innerHeight - itemHeight) / 2);
         window.scrollTo({top: Math.max(0, targetY), behavior: "smooth"});
       } else {
         iframe.scrollIntoView({block: "center", behavior: "smooth"});
