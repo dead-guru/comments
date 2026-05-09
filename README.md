@@ -1,4 +1,7 @@
-# deadcomments
+# dead.comments
+
+<img width="869" height="766" alt="image" src="https://github.com/user-attachments/assets/d77c822f-9a9f-43c6-a17b-b150cffc8f85" />
+
 
 Self-hosted universal comments for blogs and static websites. Public commenters are anonymous. Admins sign in with GitHub OAuth. Comments render through a small iframe widget backed by Go, SQLite, server-rendered HTML, sanitized GitHub-flavored Markdown, and a layered backend.
 
