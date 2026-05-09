@@ -150,6 +150,14 @@
     function canReply() {
       return wrap && wrap.dataset.canReply === "true";
     }
+    var relativeTimeFormatters = Object.create(null);
+    function getRelativeTimeFormatter(locale) {
+      var resolvedLocale = locale || "en";
+      if (!relativeTimeFormatters[resolvedLocale]) {
+        relativeTimeFormatters[resolvedLocale] = new Intl.RelativeTimeFormat(resolvedLocale, {numeric: "auto"});
+      }
+      return relativeTimeFormatters[resolvedLocale];
+    }
     function formatTime(value) {
       var date = new Date(value || "");
       if (Number.isNaN(date.getTime())) return "";
@@ -165,7 +173,7 @@
       ];
       if (seconds < 45) return tr("time_just_now");
       var locale = wrap.dataset.locale || "en";
-      var formatter = new Intl.RelativeTimeFormat(locale, {numeric: "auto"});
+      var formatter = getRelativeTimeFormatter(locale);
       for (var i = 0; i < units.length; i += 1) {
         var value = Math.floor(seconds / units[i][1]);
         if (value >= 1 && seconds < 2592000) {
@@ -687,9 +695,10 @@
         }
       }
     });
-    document.querySelectorAll(".dc-time[data-time]").forEach(function (node) {
-      node.textContent = formatTime(node.dataset.time) || node.textContent;
-      node.title = fullTime(node.dataset.time) || node.title;
+    document.querySelectorAll(".dc-time[data-time], .dc-time[datetime]").forEach(function (node) {
+      var timeValue = node.dataset.time || node.getAttribute("datetime");
+      node.textContent = formatTime(timeValue) || node.textContent;
+      node.title = fullTime(timeValue) || node.title;
     });
     document.querySelectorAll(".dc-form").forEach(setupForm);
     pollTimer = window.setInterval(pollComments, 30000);
