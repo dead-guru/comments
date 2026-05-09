@@ -280,8 +280,8 @@ body {
 .dc-form.reply {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin: 10px 0 0;
-  padding-top: 10px;
+  margin: 0 12px 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--dc-border);
 }
 .dc-form.reply .dc-form-panel {

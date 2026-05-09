@@ -394,14 +394,14 @@
       var old = document.querySelector(".dc-form.reply");
       if (old) old.remove();
       var tpl = document.getElementById("reply-template");
-      var target = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"] .dc-actions');
-      if (!tpl || !target) return;
+      var actions = document.querySelector('[data-comment-id="' + CSS.escape(id) + '"] .dc-actions');
+      if (!tpl || !actions) return;
       var base = mainForm();
       if (base) base.hidden = true;
       var node = tpl.content.cloneNode(true);
       node.querySelector('[name="parent_id"]').value = id;
       setupForm(node.querySelector(".dc-form"));
-      target.appendChild(node);
+      actions.after(node);
       sendHeight();
     }
     document.addEventListener("click", function (event) {
