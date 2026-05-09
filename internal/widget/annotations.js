@@ -44,6 +44,12 @@
     window.clearTimeout(messageTimer);
     messageTimer = window.setTimeout(handleSelection, 80);
   });
+  window.addEventListener("message", function (event) {
+    if (event.origin !== window.location.origin || !event.data) return;
+    if (event.data.type === "deadcomments:annotationFocus") {
+      focusAnnotation(event.data.annotation_id);
+    }
+  });
   window.addEventListener("resize", closePopover);
   window.setInterval(loadAnnotations, 30000);
 
@@ -340,7 +346,7 @@
   }
 
   function loadAnnotations() {
-    fetch(apiURL.toString(), {headers: {"Accept": "application/json"}})
+    return fetch(apiURL.toString(), {headers: {"Accept": "application/json"}})
       .then(function (response) {
         if (!response.ok) throw new Error("annotations unavailable");
         return response.json();
@@ -408,11 +414,11 @@
     } catch (_) {
       return;
     }
-    mark.addEventListener("click", function () { openPanel(key); });
+    mark.addEventListener("click", function () { openPanel(key, {focusComment: true}); });
     mark.addEventListener("keydown", function (event) {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        openPanel(key);
+        openPanel(key, {focusComment: true});
       }
     });
   }
@@ -462,9 +468,42 @@
     return range;
   }
 
-  function openPanel(key) {
+  function focusAnnotation(id) {
+    if (!id) return false;
+    var annotation = annotations.find(function (item) { return item.id === id; });
+    if (!annotation) {
+      loadAnnotations().then(function () {
+        window.setTimeout(function () { focusAnnotation(id); }, 80);
+      });
+      return false;
+    }
+    var key = groupKey(annotation);
+    var mark = document.querySelector('[data-dc-annotation-key="' + cssEscape(key) + '"]');
+    if (mark) {
+      mark.scrollIntoView({block: "center", behavior: "smooth"});
+      mark.classList.add("is-focused");
+      window.setTimeout(function () { mark.classList.remove("is-focused"); }, 1800);
+    }
+    openPanel(key);
+    return true;
+  }
+
+  function focusCommentForGroup(group) {
+    var first = group && group[0];
+    var comment = first && first.comment;
+    if (!comment || !comment.id) return;
+    window.postMessage({
+      type: "deadcomments:commentFocus",
+      annotation_id: first.id,
+      comment_id: comment.id
+    }, window.location.origin);
+  }
+
+  function openPanel(key, options) {
+    options = options || {};
     closePanel();
     var group = groups[key] || [];
+    if (options.focusComment) focusCommentForGroup(group);
     panel = document.createElement("aside");
     panel.className = "dc-annotation-panel";
     panel.innerHTML = '<button class="dc-annotation-panel-close" type="button"></button><h2></h2><blockquote></blockquote><div class="dc-annotation-panel-list"></div>';
@@ -539,6 +578,7 @@
     style.textContent = [
       ".dc-annotation-mark{background:rgba(255,212,59,.42);color:inherit;border-radius:3px;box-shadow:0 0 0 2px rgba(255,212,59,.2);cursor:pointer;padding:0 .04em}",
       ".dc-annotation-mark:hover,.dc-annotation-mark:focus{background:rgba(255,212,59,.62);outline:2px solid rgba(9,105,218,.45);outline-offset:2px}",
+      ".dc-annotation-mark.is-focused{background:rgba(88,166,255,.42);box-shadow:0 0 0 3px rgba(88,166,255,.28)}",
       ".dc-annotation-mark.is-pending{background:rgba(210,153,34,.32)}",
       ".dc-annotation-mark[data-count]::after{content:attr(data-count);display:inline-flex;align-items:center;justify-content:center;min-width:1.25em;height:1.25em;margin-left:.25em;border-radius:999px;background:#0969da;color:#fff;font:700 .68em/1 system-ui}",
       ".dc-annotation-popover{position:absolute;z-index:2147483000;box-sizing:border-box;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;box-shadow:0 16px 48px rgba(0,0,0,.38);padding:14px;font:14px/1.45 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",

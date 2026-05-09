@@ -262,6 +262,46 @@ body {
 .dc-body { padding: 12px; overflow-wrap: anywhere; }
 .dc-body > :first-child { margin-top: 0; }
 .dc-body > :last-child { margin-bottom: 0; }
+.dc-annotation-context {
+  display: grid;
+  gap: 7px;
+  margin: 12px 12px 0;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--dc-accent) 32%, var(--dc-border));
+  border-radius: var(--dc-radius);
+  background: color-mix(in srgb, var(--dc-accent) 8%, var(--dc-surface));
+}
+.dc-annotation-label {
+  color: var(--dc-accent);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.dc-annotation-context blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid color-mix(in srgb, var(--dc-accent) 50%, var(--dc-border));
+  color: var(--dc-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.dc-annotation-link {
+  appearance: none;
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--dc-accent);
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dc-annotation-link:hover,
+.dc-annotation-link:focus-visible {
+  text-decoration: underline;
+}
 .dc-body a {
   color: var(--dc-accent);
   font-weight: 500;

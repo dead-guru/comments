@@ -327,6 +327,25 @@ func TestAnnotationAPICreatesPublicAnnotation(t *testing.T) {
 	if len(listed.Annotations) != 1 || listed.Annotations[0].SelectedText != "selected text" {
 		t.Fatalf("expected one listed annotation, got %#v", listed.Annotations)
 	}
+
+	commentsReq := httptest.NewRequest(http.MethodGet, "/api/v1/sites/test-site/pages/%2Fposts%2Finline/comments", nil)
+	commentsRec := httptest.NewRecorder()
+	router.ServeHTTP(commentsRec, commentsReq)
+	if commentsRec.Code != http.StatusOK {
+		t.Fatalf("expected comments list ok, got %d body=%s", commentsRec.Code, commentsRec.Body.String())
+	}
+	var commentsResp struct {
+		Comments []domain.PublicComment `json:"comments"`
+	}
+	if err := json.Unmarshal(commentsRec.Body.Bytes(), &commentsResp); err != nil {
+		t.Fatal(err)
+	}
+	if len(commentsResp.Comments) != 1 || commentsResp.Comments[0].Annotation == nil {
+		t.Fatalf("expected annotation metadata on public comment, got %#v", commentsResp.Comments)
+	}
+	if commentsResp.Comments[0].Annotation.ID != created.Annotation.ID {
+		t.Fatalf("expected annotation id %q on comment, got %#v", created.Annotation.ID, commentsResp.Comments[0].Annotation)
+	}
 }
 
 func newPublicHandlerTestDeps(t *testing.T) *Handlers {

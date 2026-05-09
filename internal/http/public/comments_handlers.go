@@ -321,6 +321,7 @@ func toPublicComment(c *domain.Comment) *domain.PublicComment {
 		EditedAt:          c.EditedAt,
 		ReplyingToAuthor:  c.ReplyingToAuthor,
 		Children:          toPublicComments(c.Children),
+		Annotation:        c.Annotation,
 	}
 }
 

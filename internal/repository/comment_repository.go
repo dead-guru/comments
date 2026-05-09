@@ -203,9 +203,11 @@ func publicCommentOrder(sort domain.CommentSort) string {
 func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, error) {
 	var c domain.Comment
 	var parent, root, siteKey, pageKey, pageTitle, pageURL, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, moderationReason, edited, badgeType, badgeLabel sql.NullString
+	var annotationID, annotationText, annotationPrefix, annotationSuffix, annotationHash sql.NullString
+	var annotationStart, annotationEnd sql.NullInt64
 	var identityID sql.NullInt64
 	var created, updated string
-	if err := scanner.Scan(&c.ID, &c.SiteID, &siteKey, &c.PageID, &pageKey, &pageTitle, &pageURL, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &created, &updated, &edited); err != nil {
+	if err := scanner.Scan(&c.ID, &c.SiteID, &siteKey, &c.PageID, &pageKey, &pageTitle, &pageURL, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &annotationID, &annotationText, &annotationPrefix, &annotationSuffix, &annotationStart, &annotationEnd, &annotationHash, &created, &updated, &edited); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -238,6 +240,17 @@ func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, erro
 	c.UserAgentHash = nullableString(uaHash)
 	c.MetadataJSON = nullableString(metadata)
 	c.ModerationReason = nullableString(moderationReason)
+	if annotationID.Valid && annotationID.String != "" {
+		c.Annotation = &domain.CommentAnnotation{
+			ID:              annotationID.String,
+			SelectedText:    annotationText.String,
+			SelectionPrefix: annotationPrefix.String,
+			SelectionSuffix: annotationSuffix.String,
+			TextStart:       nullableInt64(annotationStart),
+			TextEnd:         nullableInt64(annotationEnd),
+			TextHash:        annotationHash.String,
+		}
+	}
 	c.CreatedAt = parseTime(created)
 	c.UpdatedAt = parseTime(updated)
 	c.EditedAt = nullableTime(edited)
@@ -271,6 +284,13 @@ const commentSelectSQL = `
 			ORDER BY moderation_events.created_at DESC, moderation_events.id DESC
 			LIMIT 1
 		) AS moderation_reason,
+		annotations.id,
+		COALESCE(annotations.selected_text, ''),
+		COALESCE(annotations.selection_prefix, ''),
+		COALESCE(annotations.selection_suffix, ''),
+		annotations.text_start,
+		annotations.text_end,
+		COALESCE(annotations.text_hash, ''),
 		comments.created_at,
 		comments.updated_at,
 		comments.edited_at
@@ -278,6 +298,7 @@ const commentSelectSQL = `
 	LEFT JOIN sites ON sites.id = comments.site_id
 	LEFT JOIN pages ON pages.id = comments.page_id
 	LEFT JOIN identities ON identities.id = comments.identity_id
+	LEFT JOIN annotations ON annotations.comment_id = comments.id
 	LEFT JOIN comments root_comments ON root_comments.id = COALESCE(comments.root_id, comments.id)`
 
 func CommentPath(parent *domain.Comment, id string) string {

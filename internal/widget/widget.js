@@ -205,8 +205,12 @@
   });
 
   window.addEventListener("message", function (event) {
-    if (event.origin !== src.origin) return;
     if (!event.data) return;
+    if (event.origin === window.location.origin && event.data.type === "deadcomments:commentFocus") {
+      if (iframe.contentWindow) iframe.contentWindow.postMessage(event.data, src.origin);
+      return;
+    }
+    if (event.origin !== src.origin) return;
     if (event.data.type === "deadcomments:height") {
       var height = Number(event.data.height);
       if (height > 0 && height < MAX_IFRAME_HEIGHT_PX) iframe.style.height = Math.max(minHeight, height) + "px";
@@ -222,6 +226,10 @@
       } else {
         iframe.scrollIntoView({block: "center", behavior: "smooth"});
       }
+      return;
+    }
+    if (event.data.type === "deadcomments:annotationFocus") {
+      window.postMessage(event.data, window.location.origin);
     }
   });
 

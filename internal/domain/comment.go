@@ -53,25 +53,37 @@ type Comment struct {
 	EditedAt          *time.Time
 	Children          []*Comment
 	ReplyingToAuthor  *string
+	Annotation        *CommentAnnotation
 }
 
 type PublicComment struct {
-	ID                string           `json:"id"`
-	ParentID          *string          `json:"parent_id"`
-	AuthorName        string           `json:"author_name"`
-	AuthorDisplayName string           `json:"author_display_name"`
-	AuthorWebsite     *string          `json:"author_website"`
-	AuthorAvatarHash  *string          `json:"author_avatar_hash"`
-	TripcodePublic    *string          `json:"tripcode_public"`
-	TripcodeKind      TripcodeKind     `json:"tripcode_kind"`
-	BadgeType         *BadgeType       `json:"badge_type"`
-	BadgeLabel        *string          `json:"badge_label"`
-	BodyHTML          string           `json:"body_html"`
-	Status            CommentStatus    `json:"status"`
-	CreatedAt         time.Time        `json:"created_at"`
-	EditedAt          *time.Time       `json:"edited_at"`
-	ReplyingToAuthor  *string          `json:"replying_to_author"`
-	Children          []*PublicComment `json:"children"`
+	ID                string             `json:"id"`
+	ParentID          *string            `json:"parent_id"`
+	AuthorName        string             `json:"author_name"`
+	AuthorDisplayName string             `json:"author_display_name"`
+	AuthorWebsite     *string            `json:"author_website"`
+	AuthorAvatarHash  *string            `json:"author_avatar_hash"`
+	TripcodePublic    *string            `json:"tripcode_public"`
+	TripcodeKind      TripcodeKind       `json:"tripcode_kind"`
+	BadgeType         *BadgeType         `json:"badge_type"`
+	BadgeLabel        *string            `json:"badge_label"`
+	BodyHTML          string             `json:"body_html"`
+	Status            CommentStatus      `json:"status"`
+	CreatedAt         time.Time          `json:"created_at"`
+	EditedAt          *time.Time         `json:"edited_at"`
+	ReplyingToAuthor  *string            `json:"replying_to_author"`
+	Children          []*PublicComment   `json:"children"`
+	Annotation        *CommentAnnotation `json:"annotation,omitempty"`
+}
+
+type CommentAnnotation struct {
+	ID              string `json:"id"`
+	SelectedText    string `json:"selected_text"`
+	SelectionPrefix string `json:"selection_prefix"`
+	SelectionSuffix string `json:"selection_suffix"`
+	TextStart       *int64 `json:"text_start"`
+	TextEnd         *int64 `json:"text_end"`
+	TextHash        string `json:"text_hash"`
 }
 
 type CommentCreateInput struct {

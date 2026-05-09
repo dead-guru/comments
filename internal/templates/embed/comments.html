@@ -52,6 +52,7 @@
     window.addEventListener("message", function (event) {
       if (!parentOrigin || event.origin !== parentOrigin || !event.data) return;
       if (event.data.type === "deadcomments:theme") applyInheritedTheme(event.data.theme);
+      if (event.data.type === "deadcomments:commentFocus") highlightComment(event.data.comment_id);
     });
 
     function postHeight() {
@@ -194,6 +195,10 @@
       var article = document.createElement("article");
       article.className = "dc-comment" + (root ? "" : " is-reply") + (comment.status === "pending" ? " is-pending" : "");
       article.dataset.commentId = comment.id;
+      if (comment.annotation && comment.annotation.id) {
+        article.dataset.annotationId = comment.annotation.id;
+        article.className += " is-annotation";
+      }
       article.id = "dc-" + comment.id;
 
       if (comment.author_avatar_hash) {
@@ -273,6 +278,26 @@
       }
       header.appendChild(meta);
       box.appendChild(header);
+
+      if (comment.annotation && comment.annotation.selected_text) {
+        var annotation = document.createElement("div");
+        annotation.className = "dc-annotation-context";
+        var annotationLabel = document.createElement("span");
+        annotationLabel.className = "dc-annotation-label";
+        annotationLabel.appendChild(text(tr("annotation_comment")));
+        annotation.appendChild(annotationLabel);
+        var quote = document.createElement("blockquote");
+        quote.appendChild(text(comment.annotation.selected_text));
+        annotation.appendChild(quote);
+        var viewAnnotation = document.createElement("button");
+        viewAnnotation.className = "dc-annotation-link";
+        viewAnnotation.type = "button";
+        viewAnnotation.dataset.annotationFocus = comment.annotation.id;
+        viewAnnotation.dataset.commentId = comment.id;
+        viewAnnotation.appendChild(text(tr("view_annotation")));
+        annotation.appendChild(viewAnnotation);
+        box.appendChild(annotation);
+      }
 
       var body = document.createElement("div");
       body.className = "dc-body";
@@ -635,6 +660,14 @@
       }
       var jump = event.target.closest("[data-comment-jump]");
       if (jump) highlightComment(jump.getAttribute("data-comment-jump"));
+      var annotation = event.target.closest("[data-annotation-focus]");
+      if (annotation && parentOrigin) {
+        parent.postMessage({
+          type: "deadcomments:annotationFocus",
+          annotation_id: annotation.getAttribute("data-annotation-focus"),
+          comment_id: annotation.getAttribute("data-comment-id") || ""
+        }, parentOrigin);
+      }
     });
     document.addEventListener("input", function (event) {
       var form = event.target.closest(".dc-form");
@@ -722,7 +755,7 @@
 </html>
 
 {{define "embed_comment"}}
-<article class="dc-comment {{if not .Root}}is-reply{{end}}" id="dc-{{.Comment.ID}}" data-comment-id="{{.Comment.ID}}">
+<article class="dc-comment {{if not .Root}}is-reply{{end}} {{if .Comment.Annotation}}is-annotation{{end}}" id="dc-{{.Comment.ID}}" data-comment-id="{{.Comment.ID}}" {{if .Comment.Annotation}}data-annotation-id="{{.Comment.Annotation.ID}}"{{end}}>
   {{if .Comment.AuthorAvatarHash}}
   <img class="dc-avatar" src="https://www.gravatar.com/avatar/{{.Comment.AuthorAvatarHash}}?s=80&amp;d=identicon" alt="" loading="lazy">
   {{else}}
@@ -741,6 +774,13 @@
         {{if .Comment.ReplyingToAuthor}}<span class="dc-meta-sep" aria-hidden="true">·</span><button class="dc-replying" type="button" data-comment-jump="{{.Comment.ParentID}}">{{index .T "replying_to"}}{{.Comment.ReplyingToAuthor}}</button>{{end}}
       </span>
     </header>
+    {{if .Comment.Annotation}}
+    <div class="dc-annotation-context">
+      <span class="dc-annotation-label">{{index .T "annotation_comment"}}</span>
+      <blockquote>{{.Comment.Annotation.SelectedText}}</blockquote>
+      <button class="dc-annotation-link" type="button" data-annotation-focus="{{.Comment.Annotation.ID}}" data-comment-id="{{.Comment.ID}}">{{index .T "view_annotation"}}</button>
+    </div>
+    {{end}}
     <div class="dc-body">{{safeHTML .Comment.BodyHTML}}</div>
     <div class="dc-actions">
       {{if .CanReply}}<button class="dc-action-btn" type="button" data-reply-to="{{.Comment.ID}}" aria-label="{{index .T "reply_to"}} {{if .Comment.AuthorDisplayName}}{{.Comment.AuthorDisplayName}}{{else}}{{.Comment.AuthorName}}{{end}}"><span class="dc-action-icon" aria-hidden="true">↩</span>{{index .T "reply"}}</button>{{end}}
