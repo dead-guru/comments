@@ -122,13 +122,21 @@ body {
   background: var(--dc-card);
 }
 .dc-form-message {
-  margin: 12px 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  margin-left: 4px;
+  padding: 4px 0;
+  color: var(--dc-muted);
+  font-size: 12px;
+  font-weight: 650;
   animation: dc-slide-in 180ms ease-out;
 }
-.dc-message.success {
-  border-color: color-mix(in srgb, var(--dc-success) 45%, var(--dc-border));
+.dc-form-message.is-success {
   color: var(--dc-success);
-  background: var(--dc-success-bg);
+}
+.dc-form-message.is-error {
+  color: var(--dc-danger);
 }
 .dc-error { color: var(--dc-danger); }
 

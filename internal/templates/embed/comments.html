@@ -458,14 +458,19 @@
       updateCharacterCount(form);
     }
     function showFormMessage(form, ok, message) {
-      var old = form.parentElement.querySelector(".dc-form-message");
+      var old = form.querySelector(".dc-form-message");
       if (old) old.remove();
       var msg = document.createElement("div");
-      msg.className = "dc-form-message " + (ok ? "dc-message success" : "dc-error");
+      msg.className = "dc-form-message " + (ok ? "is-success" : "is-error");
       msg.appendChild(text(message));
-      form.before(msg);
+      var row = form.querySelector(".dc-submit-row");
+      if (row) {
+        row.appendChild(msg);
+      } else {
+        form.appendChild(msg);
+      }
       sendHeight();
-      if (ok) window.setTimeout(function () { msg.remove(); sendHeight(); }, 3500);
+      window.setTimeout(function () { msg.remove(); sendHeight(); }, ok ? 2200 : 5000);
     }
     function mainForm() {
       return document.querySelector(".dc-form:not(.reply)");
