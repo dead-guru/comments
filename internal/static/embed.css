@@ -371,6 +371,9 @@ body {
   border: 0;
   padding: 0;
 }
+.dc-wrap[data-input-position="top"] > .dc-form:not(.reply) {
+  margin-bottom: 18px;
+}
 .dc-form-panel {
   display: grid;
   gap: 12px;
