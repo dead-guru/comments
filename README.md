@@ -55,6 +55,8 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:8080` | Public base URL used for OAuth callback construction |
 | `DATABASE_PATH` | `deadcomments.db` | SQLite database path |
+| `DATABASE_MAX_OPEN_CONNS` | auto, between 4 and 16 | Optional SQLite connection pool limit |
+| `DATABASE_MAX_IDLE_CONNS` | up to 4 | Optional SQLite idle connection pool limit |
 | `DEADCOMMENTS_ENV` | empty | Set to `production` to require explicit stable secrets |
 | `SERVER_SECRET` | generated on boot in development if empty | HMAC salt for IP, email, user-agent hashes, and embed submit tokens |
 | `SESSION_SECRET` | `SERVER_SECRET` in development | Admin session token hashing and CSRF signing |
@@ -264,7 +266,7 @@ If no site exists, the dashboard prompts you to create the first site.
 
 ## Storage and Security
 
-SQLite migrations live in `migrations/`. The app enables foreign keys, WAL mode, and a busy timeout.
+SQLite migrations live in `migrations/`. The app configures SQLite per connection with foreign keys, WAL mode, `synchronous=NORMAL`, a busy timeout, in-memory temporary storage, a larger page cache, memory-mapped reads, and immediate write transactions. The default connection pool allows concurrent WAL reads; tune `DATABASE_MAX_OPEN_CONNS` and `DATABASE_MAX_IDLE_CONNS` if the host has strict memory limits.
 
 The service never stores raw IP addresses, raw user-agent strings, or raw commenter email addresses. IP, email, and user-agent values are HMAC-SHA256 hashes using `SERVER_SECRET`. If a commenter provides an email, deadcomments also stores a Gravatar-compatible MD5 avatar hash so the public widget can show an avatar without storing the email itself. Markdown is rendered with goldmark GFM and sanitized with bluemonday. Admin POST routes use CSRF tokens. Admin sessions use HttpOnly SameSite cookies.
 

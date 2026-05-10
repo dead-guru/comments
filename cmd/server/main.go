@@ -23,7 +23,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	database, err := db.Open(cfg.DatabasePath)
+	database, err := db.OpenWithOptions(cfg.DatabasePath, db.Options{
+		MaxOpenConns: cfg.DatabaseMaxOpenConns,
+		MaxIdleConns: cfg.DatabaseMaxIdleConns,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -11,20 +11,22 @@ import (
 )
 
 type Config struct {
-	BaseURL             string
-	DatabasePath        string
-	ServerSecret        string
-	GitHubClientID      string
-	GitHubClientSecret  string
-	GitHubAllowedLogins map[string]struct{}
-	SessionSecret       string
-	TripcodeSecret      string
-	Port                string
-	SessionTTL          time.Duration
-	SecureCookies       bool
-	BehindTrustedProxy  bool
-	DevSeed             bool
-	MetricsToken        string
+	BaseURL              string
+	DatabasePath         string
+	DatabaseMaxOpenConns int
+	DatabaseMaxIdleConns int
+	ServerSecret         string
+	GitHubClientID       string
+	GitHubClientSecret   string
+	GitHubAllowedLogins  map[string]struct{}
+	SessionSecret        string
+	TripcodeSecret       string
+	Port                 string
+	SessionTTL           time.Duration
+	SecureCookies        bool
+	BehindTrustedProxy   bool
+	DevSeed              bool
+	MetricsToken         string
 }
 
 func LoadConfig() (Config, error) {
@@ -46,6 +48,15 @@ func LoadConfig() (Config, error) {
 		BehindTrustedProxy: truthy(os.Getenv("BEHIND_TRUSTED_PROXY")),
 		DevSeed:            os.Getenv("DEADCOMMENTS_DEV_SEED") == "1",
 		MetricsToken:       strings.TrimSpace(os.Getenv("METRICS_TOKEN")),
+	}
+	var err error
+	cfg.DatabaseMaxOpenConns, err = optionalPositiveInt("DATABASE_MAX_OPEN_CONNS")
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.DatabaseMaxIdleConns, err = optionalPositiveInt("DATABASE_MAX_IDLE_CONNS")
+	if err != nil {
+		return Config{}, err
 	}
 	cfg.GitHubAllowedLogins = parseAllowedLogins(os.Getenv("GITHUB_ALLOWED_LOGINS"))
 	if cfg.GitHubClientID != "" && cfg.GitHubClientSecret != "" && len(cfg.GitHubAllowedLogins) == 0 {
@@ -78,6 +89,18 @@ func LoadConfig() (Config, error) {
 		cfg.SessionTTL = time.Duration(hours) * time.Hour
 	}
 	return cfg, nil
+}
+
+func optionalPositiveInt(key string) (int, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return 0, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return 0, errors.New(key + " must be a positive integer")
+	}
+	return value, nil
 }
 
 func env(key, fallback string) string {

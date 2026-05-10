@@ -76,6 +76,36 @@ func TestLoadConfigReadsMetricsToken(t *testing.T) {
 	}
 }
 
+func TestLoadConfigReadsDatabasePoolLimits(t *testing.T) {
+	t.Setenv("DATABASE_MAX_OPEN_CONNS", "12")
+	t.Setenv("DATABASE_MAX_IDLE_CONNS", "6")
+	t.Setenv("GITHUB_CLIENT_ID", "")
+	t.Setenv("GITHUB_CLIENT_SECRET", "")
+	t.Setenv("GITHUB_ALLOWED_LOGINS", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DatabaseMaxOpenConns != 12 {
+		t.Fatalf("expected max open conns 12, got %d", cfg.DatabaseMaxOpenConns)
+	}
+	if cfg.DatabaseMaxIdleConns != 6 {
+		t.Fatalf("expected max idle conns 6, got %d", cfg.DatabaseMaxIdleConns)
+	}
+}
+
+func TestLoadConfigRejectsInvalidDatabasePoolLimit(t *testing.T) {
+	t.Setenv("DATABASE_MAX_OPEN_CONNS", "0")
+	t.Setenv("GITHUB_CLIENT_ID", "")
+	t.Setenv("GITHUB_CLIENT_SECRET", "")
+	t.Setenv("GITHUB_ALLOWED_LOGINS", "")
+
+	if _, err := LoadConfig(); err == nil {
+		t.Fatal("expected invalid database pool limit to fail")
+	}
+}
+
 func TestMetricsHandlerRequiresBearerTokenWhenConfigured(t *testing.T) {
 	handler := metricsHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
