@@ -82,12 +82,12 @@ func (s *SiteService) Count(ctx context.Context) (int, error) {
 }
 
 func (s *SiteService) OriginAllowed(site *domain.Site, originOrReferer string) bool {
-	if len(site.AllowedOrigins) == 0 {
-		return true
-	}
 	origin := normalizeOrigin(originOrReferer)
 	if origin == "" {
 		return false
+	}
+	if len(site.AllowedOrigins) == 0 {
+		return true
 	}
 	for _, allowed := range site.AllowedOrigins {
 		allowed = strings.TrimRight(strings.TrimSpace(allowed), "/")

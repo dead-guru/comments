@@ -336,7 +336,7 @@ readinessProbe:
 - Run behind HTTPS and set `BASE_URL` to the HTTPS origin.
 - Set stable, high-entropy `SERVER_SECRET`, `SESSION_SECRET`, and `TRIPCODE_SECRET` before accepting comments. HTTPS `BASE_URL` or `DEADCOMMENTS_ENV=production` requires these secrets explicitly.
 - Keep `GITHUB_ALLOWED_LOGINS` explicit.
-- Configure each site with exact allowed origins.
+- Configure each site with exact allowed origins. Public write requests require a valid `Origin` or `Referer`; an empty allowed-origin list means any valid origin is accepted, not that missing origin metadata is accepted.
 - Put the SQLite database on durable storage.
 - Add process supervision with systemd, Docker, Nomad, Fly, or another single-service runtime.
 - Terminate TLS at a reverse proxy and forward standard headers. Set `BEHIND_TRUSTED_PROXY=true` only when that proxy strips incoming `X-Forwarded-For` and `X-Real-IP` from untrusted clients.
