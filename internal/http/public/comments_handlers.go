@@ -29,6 +29,10 @@ type apiCommentList struct {
 func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 	siteKey := chi.URLParam(r, "site_key")
 	pageKey := decodedParam(chi.URLParam(r, "page_key"))
+	if !h.setSiteCORS(w, r, siteKey) {
+		writeJSONError(w, "origin is not allowed for this site", http.StatusForbidden)
+		return
+	}
 	sort := service.NormalizeCommentSort(r.URL.Query().Get("sort"))
 	includeAnnotations := includeAnnotationsFromRequest(r)
 	page, comments, err := h.comments.PublicTree(r.Context(), siteKey, pageKey, sort, includeAnnotations)
@@ -48,6 +52,7 @@ func (h *Handlers) APIListComments(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 	siteKey := chi.URLParam(r, "site_key")
 	pageKey := decodedParam(chi.URLParam(r, "page_key"))
+	_ = h.setSiteCORS(w, r, siteKey)
 	var payload struct {
 		AuthorName    string  `json:"author_name"`
 		AuthorEmail   string  `json:"author_email"`
@@ -117,6 +122,7 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) APIPreviewComment(w http.ResponseWriter, r *http.Request) {
 	siteKey := chi.URLParam(r, "site_key")
 	pageKey := decodedParam(chi.URLParam(r, "page_key"))
+	_ = h.setSiteCORS(w, r, siteKey)
 	var payload struct {
 		BodyMarkdown string `json:"body_markdown"`
 		ParentOrigin string `json:"parent_origin"`
@@ -149,6 +155,15 @@ func (h *Handlers) APIPreviewComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"body_html": bodyHTML}, http.StatusOK)
+}
+
+func (h *Handlers) APICommentsOptions(w http.ResponseWriter, r *http.Request) {
+	siteKey := chi.URLParam(r, "site_key")
+	if !h.setSiteCORS(w, r, siteKey) {
+		http.Error(w, "origin is not allowed for this site", http.StatusForbidden)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func createErrorMessage(locale string, err error) string {

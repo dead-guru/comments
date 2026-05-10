@@ -180,6 +180,37 @@ func TestAPICreateCommentAcceptsValidEmbedTokenParentOrigin(t *testing.T) {
 	}
 }
 
+func TestAPICreateCommentAllowsConfiguredCrossOriginRequest(t *testing.T) {
+	h := newPublicHandlerTestDeps(t)
+	router := newPublicCommentsRouter(h, nil)
+	payload := map[string]any{
+		"author_name":   "Oleksii",
+		"body_markdown": "Direct public API comment",
+	}
+
+	optionsReq := httptest.NewRequest(http.MethodOptions, "/api/v1/sites/test-site/pages/%2Fposts%2Fone/comments", nil)
+	optionsReq.Header.Set("Origin", "https://allowed.example")
+	optionsRec := httptest.NewRecorder()
+	router.ServeHTTP(optionsRec, optionsReq)
+	if optionsRec.Code != http.StatusNoContent {
+		t.Fatalf("expected preflight success, got %d body=%s", optionsRec.Code, optionsRec.Body.String())
+	}
+	if optionsRec.Header().Get("Access-Control-Allow-Origin") != "https://allowed.example" {
+		t.Fatalf("expected CORS allow-origin header on preflight, got %q", optionsRec.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	req := newJSONCommentRequest(t, payload)
+	req.Header.Set("Origin", "https://allowed.example")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected direct cross-origin create success, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != "https://allowed.example" {
+		t.Fatalf("expected CORS allow-origin header, got %q", rec.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
 func TestAPIPreviewCommentRendersSanitizedMarkdown(t *testing.T) {
 	h := newPublicHandlerTestDeps(t)
 	router := newPublicCommentsRouter(h, nil)
@@ -412,6 +443,8 @@ func newPublicHandlerTestDeps(t *testing.T) *Handlers {
 
 func newPublicCommentsRouter(h *Handlers, limiter *middleware.RateLimiter) http.Handler {
 	router := chi.NewRouter()
+	router.Options("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APICommentsOptions)
+	router.Options("/api/v1/sites/{site_key}/pages/{page_key:.*}/preview", h.APICommentsOptions)
 	router.Get("/api/v1/sites/{site_key}/pages/{page_key:.*}/comments", h.APIListComments)
 	router.Get("/api/v1/sites/{site_key}/pages/{page_key:.*}/annotations", h.APIListAnnotations)
 	router.Options("/api/v1/sites/{site_key}/pages/{page_key:.*}/annotations", h.APIAnnotationsOptions)
