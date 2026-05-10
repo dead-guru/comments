@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"deadcomments/migrations"
 )
 
 func Migrate(ctx context.Context, database *sql.DB) error {
@@ -59,6 +62,38 @@ func migrationApplied(ctx context.Context, database *sql.DB, version string) (bo
 }
 
 func readMigrations() ([]migrationFile, error) {
+	if files, err := readEmbeddedMigrations(); err == nil {
+		return files, nil
+	}
+	return readFilesystemMigrations()
+}
+
+func readEmbeddedMigrations() ([]migrationFile, error) {
+	entries, err := fs.ReadDir(migrations.Files, ".")
+	if err != nil {
+		return nil, err
+	}
+	var files []migrationFile
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		b, err := fs.ReadFile(migrations.Files, entry.Name())
+		if err != nil {
+			return nil, fmt.Errorf("read embedded migration %s: %w", entry.Name(), err)
+		}
+		files = append(files, migrationFile{
+			version: strings.TrimSuffix(entry.Name(), ".sql"),
+			sql:     string(b),
+		})
+	}
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].version < files[j].version
+	})
+	return files, nil
+}
+
+func readFilesystemMigrations() ([]migrationFile, error) {
 	dir, err := findMigrationDir()
 	if err != nil {
 		return nil, err

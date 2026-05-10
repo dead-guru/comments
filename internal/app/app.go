@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	assets "deadcomments/internal"
 	dcauth "deadcomments/internal/auth"
 	dcevent "deadcomments/internal/event"
 	adminhttp "deadcomments/internal/http/admin"
@@ -131,14 +131,14 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 			return strings.HasPrefix(current, item)
 		},
 	}
-	tmpl, err := template.New("").Funcs(funcs).ParseGlob(filepath.Join("internal", "templates", "*.html"))
+	tmpl, err := template.New("").Funcs(funcs).ParseFS(assets.Templates, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
-	if _, err := tmpl.ParseGlob(filepath.Join("internal", "templates", "admin", "*.html")); err != nil {
+	if _, err := tmpl.ParseFS(assets.Templates, "templates/admin/*.html"); err != nil {
 		return nil, err
 	}
-	if _, err := tmpl.ParseGlob(filepath.Join("internal", "templates", "embed", "*.html")); err != nil {
+	if _, err := tmpl.ParseFS(assets.Templates, "templates/embed/*.html"); err != nil {
 		return nil, err
 	}
 

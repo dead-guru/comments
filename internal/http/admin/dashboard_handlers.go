@@ -2,6 +2,7 @@ package admin
 
 import (
 	"html/template"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -10,11 +11,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	assets "deadcomments/internal"
 	dcauth "deadcomments/internal/auth"
 	"deadcomments/internal/domain"
 	"deadcomments/internal/http/middleware"
 	"deadcomments/internal/service"
 )
+
+var adminStaticAssets = http.FileServer(http.FS(mustStaticSubFS(assets.Static, "static")))
 
 type Handlers struct {
 	sites      *service.SiteService
@@ -41,12 +45,26 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) AdminCSS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
-	http.ServeFile(w, r, "internal/static/admin.css")
+	serveAdminEmbeddedFile(w, r, "admin.css")
 }
 
 func (h *Handlers) AdminJS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-	http.ServeFile(w, r, "internal/static/admin.js")
+	serveAdminEmbeddedFile(w, r, "admin.js")
+}
+
+func mustStaticSubFS(files fs.FS, dir string) fs.FS {
+	sub, err := fs.Sub(files, dir)
+	if err != nil {
+		panic(err)
+	}
+	return sub
+}
+
+func serveAdminEmbeddedFile(w http.ResponseWriter, r *http.Request, name string) {
+	clone := r.Clone(r.Context())
+	clone.URL.Path = "/" + name
+	adminStaticAssets.ServeHTTP(w, clone)
 }
 
 func (h *Handlers) GitHubStart(w http.ResponseWriter, r *http.Request) {

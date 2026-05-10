@@ -165,6 +165,9 @@ Open `http://localhost:3000/docs/intro`, `threading`, `moderation`, and `annotat
 To run the comments service and the Docusaurus test stand together:
 
 ```bash
+cp .env.example .env
+# Replace SERVER_SECRET, SESSION_SECRET, and TRIPCODE_SECRET with stable random values.
+# For local-only testing, `openssl rand -hex 32` is enough for each one.
 docker compose up --build
 ```
 
@@ -173,7 +176,7 @@ Open:
 - comments service: `http://localhost:8080`
 - Docusaurus test stand: `http://localhost:3000/docs/intro`
 
-The compose setup enables `DEADCOMMENTS_DEV_SEED=1`, so the `docs-demo` site is created automatically with allowed origins for local Docusaurus testing.
+The compose setup enables `DEADCOMMENTS_DEV_SEED=1`, so the `docs-demo` site is created automatically with allowed origins for local Docusaurus testing. Compose intentionally requires `SERVER_SECRET`, `SESSION_SECRET`, and `TRIPCODE_SECRET` from your environment or `.env` file instead of shipping usable secrets in `docker-compose.yml`.
 
 SQLite data is stored in the named Docker volume `deadcomments-data`. To reset local test data:
 

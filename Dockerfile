@@ -3,6 +3,7 @@
 FROM golang:1.25-alpine AS build
 
 WORKDIR /src
+ENV GOTOOLCHAIN=local
 
 RUN apk add --no-cache ca-certificates tzdata
 
@@ -16,8 +17,17 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/deadcomments ./cmd/server
 
 FROM alpine:3.20 AS runtime
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG SOURCE=https://github.com/dead-guru/comments
 
-RUN apk add --no-cache ca-certificates tzdata curl \
+LABEL org.opencontainers.image.title="deadcomments" \
+      org.opencontainers.image.description="Self-hosted comments and annotations for static sites" \
+      org.opencontainers.image.source="${SOURCE}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
+
+RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -S deadcomments \
     && adduser -S -D -H -h /app -s /sbin/nologin -G deadcomments deadcomments \
     && mkdir -p /app /data \
@@ -26,10 +36,6 @@ RUN apk add --no-cache ca-certificates tzdata curl \
 WORKDIR /app
 
 COPY --from=build /out/deadcomments /app/deadcomments
-COPY --from=build /src/migrations /app/migrations
-COPY --from=build /src/internal/templates /app/internal/templates
-COPY --from=build /src/internal/static /app/internal/static
-COPY --from=build /src/internal/widget /app/internal/widget
 
 USER deadcomments
 
@@ -40,6 +46,6 @@ ENV PORT=8080 \
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:${PORT}/healthz || exit 1
+  CMD /app/deadcomments healthcheck
 
 ENTRYPOINT ["/app/deadcomments"]

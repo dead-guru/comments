@@ -11,9 +11,9 @@ services:
       DEADCOMMENTS_ENV: development
       DEADCOMMENTS_DEV_SEED: "1"
       BEHIND_TRUSTED_PROXY: "false"
-      SERVER_SECRET: local-dev-server-secret-change-me
-      SESSION_SECRET: local-dev-session-secret-change-me
-      TRIPCODE_SECRET: local-dev-tripcode-secret-change-me
+      SERVER_SECRET: ${SERVER_SECRET:?Set SERVER_SECRET in .env for local compose}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env for local compose}
+      TRIPCODE_SECRET: ${TRIPCODE_SECRET:?Set TRIPCODE_SECRET in .env for local compose}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_ALLOWED_LOGINS: ${GITHUB_ALLOWED_LOGINS:-}
@@ -21,12 +21,24 @@ services:
       - "8080:8080"
     volumes:
       - deadcomments-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      test: ["CMD", "/app/deadcomments", "healthcheck"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
 
   docusaurus:
     build:
@@ -38,6 +50,10 @@ services:
     depends_on:
       comments:
         condition: service_healthy
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   deadcomments-data:

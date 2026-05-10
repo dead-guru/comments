@@ -4,14 +4,19 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"os"
 	"strings"
 
+	assets "deadcomments/internal"
 	"deadcomments/internal/domain"
 	"deadcomments/internal/i18n"
 	"deadcomments/internal/service"
 )
+
+var staticAssets = http.FileServer(http.FS(mustSubFS(assets.Static, "static")))
+var widgetAssets = http.FileServer(http.FS(mustSubFS(assets.Static, "widget")))
 
 type Handlers struct {
 	sites       *service.SiteService
@@ -29,17 +34,31 @@ func NewHandlers(sites *service.SiteService, pages *service.PageService, comment
 
 func (h *Handlers) WidgetJS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-	http.ServeFile(w, r, "internal/widget/widget.js")
+	serveEmbeddedFile(w, r, widgetAssets, "widget.js")
 }
 
 func (h *Handlers) AnnotationsJS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-	http.ServeFile(w, r, "internal/widget/annotations.js")
+	serveEmbeddedFile(w, r, widgetAssets, "annotations.js")
 }
 
 func (h *Handlers) EmbedCSS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
-	http.ServeFile(w, r, "internal/static/embed.css")
+	serveEmbeddedFile(w, r, staticAssets, "embed.css")
+}
+
+func mustSubFS(files fs.FS, dir string) fs.FS {
+	sub, err := fs.Sub(files, dir)
+	if err != nil {
+		panic(err)
+	}
+	return sub
+}
+
+func serveEmbeddedFile(w http.ResponseWriter, r *http.Request, handler http.Handler, name string) {
+	clone := r.Clone(r.Context())
+	clone.URL.Path = "/" + name
+	handler.ServeHTTP(w, clone)
 }
 
 func (h *Handlers) EmbedComments(w http.ResponseWriter, r *http.Request) {
