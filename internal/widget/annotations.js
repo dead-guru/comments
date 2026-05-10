@@ -186,6 +186,10 @@
     return String(value).replace(/["\\]/g, "\\$&");
   }
 
+  function safeAnnotationSelector(selector) {
+    return /^(#[A-Za-z0-9_-]+|\[data-dc-(anchor|annotation-root)="[A-Za-z0-9_./-]+"\])$/.test(String(selector || ""));
+  }
+
   function assignRootAnchors() {
     roots().forEach(function (root, index) {
       if (!root.getAttribute("data-dc-annotation-root")) {
@@ -589,6 +593,7 @@
       if (group.some(function (item) { return item._localPending; })) existing.classList.add("is-pending");
       return;
     }
+    if (!safeAnnotationSelector(annotation.selector)) return;
     var root = document.querySelector(annotation.selector);
     if (!root) return;
     var range = rangeForAnnotation(root, annotation);

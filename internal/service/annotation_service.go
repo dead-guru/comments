@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"strings"
 
 	"deadcomments/internal/domain"
@@ -17,6 +18,8 @@ const (
 	maxAnnotationContextLength  = 240
 	maxAnnotationMetadataBytes  = 4 << 10
 )
+
+var safeAnnotationSelectorRe = regexp.MustCompile(`^(#[A-Za-z0-9_-]+|\[data-dc-(anchor|annotation-root)="[A-Za-z0-9_./-]+"\])$`)
 
 type AnnotationService struct {
 	sites       *repository.SiteRepository
@@ -71,6 +74,9 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 	}
 	if len([]rune(selector)) > maxAnnotationSelectorLength {
 		return AnnotationCreateResult{}, errors.New("annotation selector is too long")
+	}
+	if !safeAnnotationSelectorRe.MatchString(selector) {
+		return AnnotationCreateResult{}, errors.New("annotation selector is invalid")
 	}
 	if len([]rune(selectedText)) > maxAnnotationQuoteLength {
 		return AnnotationCreateResult{}, errors.New("selected text is too long")

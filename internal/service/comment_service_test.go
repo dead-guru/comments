@@ -269,6 +269,15 @@ func TestAnnotationRequiresSelectionAnchor(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "selected text") {
 		t.Fatalf("expected selected text validation error, got %v", err)
 	}
+
+	_, err = deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: validInput(nil),
+		Selector:           "article:has(.expensive)",
+		SelectedText:       "selected",
+	})
+	if err == nil || !strings.Contains(err.Error(), "selector") {
+		t.Fatalf("expected selector validation error, got %v", err)
+	}
 }
 
 func TestAnnotationMetadataJSONValidation(t *testing.T) {
