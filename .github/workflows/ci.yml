@@ -110,6 +110,10 @@ jobs:
     name: Docker Compose Smoke Test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SERVER_SECRET: ci-server-secret-not-for-production
+      SESSION_SECRET: ci-session-secret-not-for-production
+      TRIPCODE_SECRET: ci-tripcode-secret-not-for-production
 
     steps:
       - name: Checkout
