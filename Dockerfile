@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/deadcomments ./cmd/server
 
-FROM alpine:3.20 AS runtime
+FROM alpine:3.23 AS runtime
 ARG VERSION=dev
 ARG REVISION=unknown
 ARG SOURCE=https://github.com/dead-guru/comments
