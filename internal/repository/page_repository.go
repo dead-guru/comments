@@ -48,6 +48,10 @@ func (r *PageRepository) ByID(ctx context.Context, id int64) (*domain.Page, erro
 }
 
 func (r *PageRepository) List(ctx context.Context, siteID *int64, state, search string) ([]*domain.Page, error) {
+	return r.ListPaginated(ctx, siteID, state, search, 200, 0)
+}
+
+func (r *PageRepository) ListPaginated(ctx context.Context, siteID *int64, state, search string, limit, offset int) ([]*domain.Page, error) {
 	q := `SELECT id, site_id, page_key, title, url, state, comments_count, approved_count, pending_count, created_at, updated_at FROM pages WHERE 1=1`
 	args := []any{}
 	if siteID != nil {
@@ -63,7 +67,11 @@ func (r *PageRepository) List(ctx context.Context, siteID *int64, state, search 
 		like := "%" + search + "%"
 		args = append(args, like, like, like)
 	}
-	q += ` ORDER BY updated_at DESC LIMIT 200`
+	if limit <= 0 {
+		limit = 200
+	}
+	q += ` ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, nonNegative(offset))
 	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err

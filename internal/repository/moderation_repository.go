@@ -33,7 +33,17 @@ func (r *ModerationRepository) CreateIPBan(ctx context.Context, ban *domain.IPBa
 }
 
 func (r *ModerationRepository) ListIPBans(ctx context.Context) ([]*domain.IPBan, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, site_id, ip_hash, reason, created_by_admin_id, created_at FROM ip_bans ORDER BY created_at DESC`)
+	return r.ListIPBansPaginated(ctx, 0, 0)
+}
+
+func (r *ModerationRepository) ListIPBansPaginated(ctx context.Context, limit, offset int) ([]*domain.IPBan, error) {
+	query := `SELECT id, site_id, ip_hash, reason, created_by_admin_id, created_at FROM ip_bans ORDER BY created_at DESC`
+	args := []any{}
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, nonNegative(offset))
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +107,17 @@ func (r *ModerationRepository) WordBans(ctx context.Context, siteID int64) ([]*d
 }
 
 func (r *ModerationRepository) ListWordBans(ctx context.Context) ([]*domain.WordBan, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, site_id, pattern, action, created_at FROM word_bans ORDER BY created_at DESC`)
+	return r.ListWordBansPaginated(ctx, 0, 0)
+}
+
+func (r *ModerationRepository) ListWordBansPaginated(ctx context.Context, limit, offset int) ([]*domain.WordBan, error) {
+	query := `SELECT id, site_id, pattern, action, created_at FROM word_bans ORDER BY created_at DESC`
+	args := []any{}
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, nonNegative(offset))
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

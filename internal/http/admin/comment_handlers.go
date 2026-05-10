@@ -17,15 +17,20 @@ import (
 
 func (h *Handlers) Comments(w http.ResponseWriter, r *http.Request) {
 	filter := commentListFilterFromRequest(r)
+	page, limit, offset := adminPage(r, "page")
+	filter.Limit = limit
+	filter.Offset = offset
 	comments, err := h.comments.AdminListFiltered(r.Context(), filter)
 	if err != nil {
 		http.Error(w, "failed to load comments", http.StatusInternalServerError)
 		return
 	}
+	comments, hasNext := trimAdminPage(comments)
 	h.render(w, r, "admin/comments_queue.html", map[string]any{
-		"Comments": comments,
-		"Status":   filter.Status,
-		"Filters":  r.URL.Query(),
+		"Comments":   comments,
+		"Status":     filter.Status,
+		"Filters":    r.URL.Query(),
+		"Pagination": newPagination(r, "page", page, hasNext),
 	})
 }
 
@@ -66,12 +71,23 @@ func (h *Handlers) ExportComments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) PendingComments(w http.ResponseWriter, r *http.Request) {
-	comments, err := h.comments.AdminList(r.Context(), string(domain.CommentPending), "", nil, nil, 200)
+	page, limit, offset := adminPage(r, "page")
+	comments, err := h.comments.AdminListFiltered(r.Context(), repository.CommentListFilter{
+		Status: string(domain.CommentPending),
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
 		http.Error(w, "failed to load pending comments", http.StatusInternalServerError)
 		return
 	}
-	h.render(w, r, "admin/comments_queue.html", map[string]any{"Comments": comments, "Status": domain.CommentPending})
+	comments, hasNext := trimAdminPage(comments)
+	h.render(w, r, "admin/comments_queue.html", map[string]any{
+		"Comments":   comments,
+		"Status":     domain.CommentPending,
+		"Filters":    r.URL.Query(),
+		"Pagination": newPagination(r, "page", page, hasNext),
+	})
 }
 
 func (h *Handlers) CommentDetail(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +148,6 @@ func commentListFilterFromRequest(r *http.Request) repository.CommentListFilter 
 		Search:        strings.TrimSpace(q.Get("q")),
 		IPHash:        strings.TrimSpace(q.Get("ip_hash")),
 		UserAgentHash: strings.TrimSpace(q.Get("ua_hash")),
-		Limit:         200,
 	}
 	if raw := strings.TrimSpace(q.Get("site_id")); raw != "" {
 		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {

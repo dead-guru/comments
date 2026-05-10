@@ -8,8 +8,14 @@ import (
 )
 
 func (h *Handlers) Sites(w http.ResponseWriter, r *http.Request) {
-	sites, _ := h.sites.List(r.Context())
-	h.render(w, r, "admin/sites_list.html", map[string]any{"Sites": sites})
+	page, limit, offset := adminPage(r, "page")
+	sites, err := h.sites.ListPaginated(r.Context(), limit, offset)
+	if err != nil {
+		http.Error(w, "failed to load sites", http.StatusInternalServerError)
+		return
+	}
+	sites, hasNext := trimAdminPage(sites)
+	h.render(w, r, "admin/sites_list.html", map[string]any{"Sites": sites, "Pagination": newPagination(r, "page", page, hasNext)})
 }
 
 func (h *Handlers) NewSite(w http.ResponseWriter, r *http.Request) {

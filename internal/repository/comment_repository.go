@@ -70,6 +70,7 @@ type CommentListFilter struct {
 	IPHash        string
 	UserAgentHash string
 	Limit         int
+	Offset        int
 }
 
 func (r *CommentRepository) List(ctx context.Context, status, search string, siteID, pageID *int64, limit int) ([]*domain.Comment, error) {
@@ -108,8 +109,8 @@ func (r *CommentRepository) ListFiltered(ctx context.Context, filter CommentList
 	if limit <= 0 {
 		limit = 200
 	}
-	q += ` ORDER BY comments.created_at DESC LIMIT ?`
-	args = append(args, limit)
+	q += ` ORDER BY comments.created_at DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, nonNegative(filter.Offset))
 	return r.list(ctx, q, args...)
 }
 

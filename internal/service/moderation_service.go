@@ -137,8 +137,16 @@ func (s *ModerationService) ListIPBans(ctx context.Context) ([]*domain.IPBan, er
 	return s.moderation.ListIPBans(ctx)
 }
 
+func (s *ModerationService) ListIPBansPaginated(ctx context.Context, limit, offset int) ([]*domain.IPBan, error) {
+	return s.moderation.ListIPBansPaginated(ctx, limit, offset)
+}
+
 func (s *ModerationService) ListWordBans(ctx context.Context) ([]*domain.WordBan, error) {
 	return s.moderation.ListWordBans(ctx)
+}
+
+func (s *ModerationService) ListWordBansPaginated(ctx context.Context, limit, offset int) ([]*domain.WordBan, error) {
+	return s.moderation.ListWordBansPaginated(ctx, limit, offset)
 }
 
 func (s *ModerationService) AddWordBan(ctx context.Context, ban *domain.WordBan) error {

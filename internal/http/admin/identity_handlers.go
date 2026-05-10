@@ -9,8 +9,14 @@ import (
 )
 
 func (h *Handlers) Identities(w http.ResponseWriter, r *http.Request) {
-	identities, _ := h.identities.List(r.Context())
-	h.render(w, r, "admin/identities_list.html", map[string]any{"Identities": identities})
+	page, limit, offset := adminPage(r, "page")
+	identities, err := h.identities.ListPaginated(r.Context(), limit, offset)
+	if err != nil {
+		http.Error(w, "failed to load identities", http.StatusInternalServerError)
+		return
+	}
+	identities, hasNext := trimAdminPage(identities)
+	h.render(w, r, "admin/identities_list.html", map[string]any{"Identities": identities, "Pagination": newPagination(r, "page", page, hasNext)})
 }
 
 func (h *Handlers) NewIdentity(w http.ResponseWriter, r *http.Request) {

@@ -89,10 +89,20 @@ func (r *IdentityRepository) ByNormalizedName(ctx context.Context, siteID int64,
 }
 
 func (r *IdentityRepository) List(ctx context.Context) ([]*domain.Identity, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	return r.ListPaginated(ctx, 0, 0)
+}
+
+func (r *IdentityRepository) ListPaginated(ctx context.Context, limit, offset int) ([]*domain.Identity, error) {
+	query := `
 		SELECT id, site_id, display_name, normalized_name, type, secret_hash, public_tripcode, badge_type, badge_label, created_by_admin_id, created_at, updated_at
 		FROM identities
-		ORDER BY updated_at DESC, id DESC`)
+		ORDER BY updated_at DESC, id DESC`
+	args := []any{}
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, nonNegative(offset))
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

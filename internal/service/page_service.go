@@ -51,6 +51,10 @@ func (s *PageService) List(ctx context.Context, siteID *int64, state, search str
 	return s.pages.List(ctx, siteID, state, search)
 }
 
+func (s *PageService) ListPaginated(ctx context.Context, siteID *int64, state, search string, limit, offset int) ([]*domain.Page, error) {
+	return s.pages.ListPaginated(ctx, siteID, state, search, limit, offset)
+}
+
 func (s *PageService) Count(ctx context.Context) (int, error) {
 	return s.pages.Count(ctx)
 }

@@ -204,6 +204,10 @@ func (s *IdentityService) List(ctx context.Context) ([]*domain.Identity, error) 
 	return s.identities.List(ctx)
 }
 
+func (s *IdentityService) ListPaginated(ctx context.Context, limit, offset int) ([]*domain.Identity, error) {
+	return s.identities.ListPaginated(ctx, limit, offset)
+}
+
 func (s *IdentityService) GeneratePublicTripcode(secret string) string {
 	h := hmac.New(sha256.New, []byte(s.tripcodeSecret))
 	_, _ = h.Write([]byte(normalizeTripcodeSecret(secret)))

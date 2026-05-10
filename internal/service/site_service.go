@@ -73,6 +73,10 @@ func (s *SiteService) List(ctx context.Context) ([]*domain.Site, error) {
 	return s.sites.List(ctx)
 }
 
+func (s *SiteService) ListPaginated(ctx context.Context, limit, offset int) ([]*domain.Site, error) {
+	return s.sites.ListPaginated(ctx, limit, offset)
+}
+
 func (s *SiteService) Count(ctx context.Context) (int, error) {
 	return s.sites.Count(ctx)
 }

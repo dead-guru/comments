@@ -15,6 +15,13 @@ func parseTime(raw string) time.Time {
 	return t
 }
 
+func nonNegative(v int) int {
+	if v < 0 {
+		return 0
+	}
+	return v
+}
+
 func nullableString(ns sql.NullString) *string {
 	if !ns.Valid {
 		return nil

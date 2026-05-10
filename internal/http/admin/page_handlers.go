@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"deadcomments/internal/domain"
+	"deadcomments/internal/repository"
 )
 
 func (h *Handlers) Pages(w http.ResponseWriter, r *http.Request) {
@@ -12,8 +13,14 @@ func (h *Handlers) Pages(w http.ResponseWriter, r *http.Request) {
 	if id := parseIDParam(r, "id"); id > 0 {
 		siteID = &id
 	}
-	pages, _ := h.pages.List(r.Context(), siteID, r.URL.Query().Get("state"), r.URL.Query().Get("q"))
-	h.render(w, r, "admin/pages_list.html", map[string]any{"Pages": pages, "SiteID": siteID, "Filters": r.URL.Query()})
+	page, limit, offset := adminPage(r, "page")
+	pages, err := h.pages.ListPaginated(r.Context(), siteID, r.URL.Query().Get("state"), r.URL.Query().Get("q"), limit, offset)
+	if err != nil {
+		http.Error(w, "failed to load pages", http.StatusInternalServerError)
+		return
+	}
+	pages, hasNext := trimAdminPage(pages)
+	h.render(w, r, "admin/pages_list.html", map[string]any{"Pages": pages, "SiteID": siteID, "Filters": r.URL.Query(), "Pagination": newPagination(r, "page", page, hasNext)})
 }
 
 func (h *Handlers) PageDetail(w http.ResponseWriter, r *http.Request) {
@@ -22,8 +29,14 @@ func (h *Handlers) PageDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	comments, _ := h.comments.AdminList(r.Context(), "", "", nil, &page.ID, 200)
-	h.render(w, r, "admin/page_detail.html", map[string]any{"Page": page, "Comments": comments})
+	commentPage, limit, offset := adminPage(r, "page")
+	comments, err := h.comments.AdminListFiltered(r.Context(), repository.CommentListFilter{PageID: &page.ID, Limit: limit, Offset: offset})
+	if err != nil {
+		http.Error(w, "failed to load comments", http.StatusInternalServerError)
+		return
+	}
+	comments, hasNext := trimAdminPage(comments)
+	h.render(w, r, "admin/page_detail.html", map[string]any{"Page": page, "Comments": comments, "Pagination": newPagination(r, "page", commentPage, hasNext)})
 }
 
 func (h *Handlers) PageState(w http.ResponseWriter, r *http.Request) {

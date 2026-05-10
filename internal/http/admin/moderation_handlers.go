@@ -9,10 +9,32 @@ import (
 )
 
 func (h *Handlers) Bans(w http.ResponseWriter, r *http.Request) {
-	ipBans, _ := h.moderation.ListIPBans(r.Context())
-	wordBans, _ := h.moderation.ListWordBans(r.Context())
-	sites, _ := h.sites.List(r.Context())
-	h.render(w, r, "admin/bans.html", map[string]any{"IPBans": ipBans, "WordBans": wordBans, "Sites": sites})
+	ipPage, ipLimit, ipOffset := adminPage(r, "ip_page")
+	wordPage, wordLimit, wordOffset := adminPage(r, "word_page")
+	ipBans, err := h.moderation.ListIPBansPaginated(r.Context(), ipLimit, ipOffset)
+	if err != nil {
+		http.Error(w, "failed to load IP bans", http.StatusInternalServerError)
+		return
+	}
+	wordBans, err := h.moderation.ListWordBansPaginated(r.Context(), wordLimit, wordOffset)
+	if err != nil {
+		http.Error(w, "failed to load word bans", http.StatusInternalServerError)
+		return
+	}
+	ipBans, hasNextIP := trimAdminPage(ipBans)
+	wordBans, hasNextWord := trimAdminPage(wordBans)
+	sites, err := h.sites.List(r.Context())
+	if err != nil {
+		http.Error(w, "failed to load sites", http.StatusInternalServerError)
+		return
+	}
+	h.render(w, r, "admin/bans.html", map[string]any{
+		"IPBans":         ipBans,
+		"WordBans":       wordBans,
+		"Sites":          sites,
+		"IPPagination":   newPagination(r, "ip_page", ipPage, hasNextIP),
+		"WordPagination": newPagination(r, "word_page", wordPage, hasNextWord),
+	})
 }
 
 func (h *Handlers) CreateIPBan(w http.ResponseWriter, r *http.Request) {

@@ -20,6 +20,7 @@ type EventFilter struct {
 	From          string
 	To            string
 	Limit         int
+	Offset        int
 }
 
 func NewEventRepository(db *sql.DB) *EventRepository {
@@ -109,8 +110,8 @@ func (r *EventRepository) ListFiltered(ctx context.Context, filter EventFilter) 
 		query += ` AND occurred_at <= ?`
 		args = append(args, filter.To)
 	}
-	query += ` ORDER BY occurred_at DESC LIMIT ?`
-	args = append(args, limit)
+	query += ` ORDER BY occurred_at DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, nonNegative(filter.Offset))
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err

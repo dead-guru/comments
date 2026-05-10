@@ -38,9 +38,11 @@
   <thead><tr><th>ID</th><th>Site</th><th>IP hash</th><th>Reason</th><th></th></tr></thead>
   <tbody>{{range .IPBans}}<tr><td>{{.ID}}</td><td>{{if .SiteID}}{{.SiteID}}{{else}}global{{end}}</td><td><code>{{.IPHash}}</code></td><td>{{if .Reason}}{{.Reason}}{{end}}</td><td><form method="post" action="/admin/bans/{{.ID}}/delete"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="kind" value="ip"><button>Delete</button></form></td></tr>{{else}}<tr><td colspan="5" class="muted">No IP bans.</td></tr>{{end}}</tbody>
 </table>
+{{template "pagination" .IPPagination}}
 <h2>Word bans</h2>
 <table>
   <thead><tr><th>ID</th><th>Site</th><th>Pattern</th><th>Action</th><th></th></tr></thead>
   <tbody>{{range .WordBans}}<tr><td>{{.ID}}</td><td>{{if .SiteID}}{{.SiteID}}{{else}}global{{end}}</td><td><code>{{.Pattern}}</code></td><td>{{.Action}}</td><td><form method="post" action="/admin/bans/{{.ID}}/delete"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"><input type="hidden" name="kind" value="word"><button>Delete</button></form></td></tr>{{else}}<tr><td colspan="5" class="muted">No word bans.</td></tr>{{end}}</tbody>
 </table>
+{{template "pagination" .WordPagination}}
 {{template "admin_foot" .}}

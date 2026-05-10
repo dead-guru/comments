@@ -55,7 +55,17 @@ func (r *SiteRepository) ByID(ctx context.Context, id int64) (*domain.Site, erro
 }
 
 func (r *SiteRepository) List(ctx context.Context) ([]*domain.Site, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, key, name, allowed_origins_json, default_moderation_mode, default_page_state, default_theme, max_comment_length, allow_replies, created_at, updated_at FROM sites ORDER BY name`)
+	return r.ListPaginated(ctx, 0, 0)
+}
+
+func (r *SiteRepository) ListPaginated(ctx context.Context, limit, offset int) ([]*domain.Site, error) {
+	query := `SELECT id, key, name, allowed_origins_json, default_moderation_mode, default_page_state, default_theme, max_comment_length, allow_replies, created_at, updated_at FROM sites ORDER BY name`
+	args := []any{}
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, nonNegative(offset))
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
