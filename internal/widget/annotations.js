@@ -89,6 +89,7 @@
         reply: "Reply to selection",
         addToSelection: "Add another comment",
         replyAction: "Reply",
+        replyingTo: "replying to @",
         submit: "Submit",
         submitting: "Submitting...",
         cancel: "Cancel",
@@ -112,6 +113,7 @@
         reply: "Відповісти до виділення",
         addToSelection: "Додати ще коментар",
         replyAction: "Відповісти",
+        replyingTo: "відповідь @",
         submit: "Надіслати",
         submitting: "Надсилаємо...",
         cancel: "Скасувати",
@@ -815,6 +817,12 @@
     time.textContent = relativeTime(time.dateTime);
     header.appendChild(author);
     header.appendChild(time);
+    if (comment.replying_to_author) {
+      var replying = document.createElement("span");
+      replying.className = "dc-annotation-replying";
+      replying.textContent = t("replyingTo") + comment.replying_to_author;
+      header.appendChild(replying);
+    }
     if (annotation._localPending || comment.status === "pending") {
       var badge = document.createElement("span");
       badge.className = "dc-annotation-pending";
@@ -884,7 +892,7 @@
       ".dc-annotation-hints{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;color:#8b949e;font-size:12px}.dc-annotation-actions{display:flex;align-items:center;gap:10px;margin-top:12px}.dc-annotation-submit{border:0;border-radius:6px;background:#238636;color:#fff;font-weight:700;padding:9px 14px;cursor:pointer;transition:background-color .12s ease,opacity .12s ease}.dc-annotation-submit:hover{background:#2ea043}.dc-annotation-submit:disabled{opacity:.65;cursor:not-allowed}.dc-annotation-cancel{border:0;border-radius:6px;background:transparent;color:#8b949e;font-weight:700;padding:9px 10px;cursor:pointer;transition:background-color .12s ease,color .12s ease}.dc-annotation-cancel:hover{background:#161b22;color:#e6edf3}.dc-annotation-message{min-height:18px;margin-top:8px;font-size:13px}.dc-annotation-message.is-error{color:#ff7b72}.dc-annotation-message.is-success{color:#3fb950}.dc-annotation-message.is-warning{color:#d29922}.dc-annotation-honeypot{position:absolute!important;left:-10000px!important}",
       ".dc-annotation-panel{position:fixed;z-index:2147483001;top:0;right:0;width:min(420px,calc(100vw - 24px));height:100vh;box-sizing:border-box;background:#0d1117;color:#e6edf3;border-left:1px solid #30363d;box-shadow:-16px 0 48px rgba(0,0,0,.35);padding:20px;overflow:auto;transform:translateX(105%);transition:transform .18s ease;font:14px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.dc-annotation-panel.is-open{transform:translateX(0)}",
       ".dc-annotation-panel-close{position:absolute;top:12px;right:12px;border:1px solid #30363d;border-radius:6px;background:#161b22;color:#e6edf3;font-size:22px;line-height:1;width:34px;height:34px;cursor:pointer;transition:background-color .12s ease,border-color .12s ease}.dc-annotation-panel-close:hover{background:#21262d;border-color:#8b949e}.dc-annotation-panel h2{font-size:18px;margin:0 42px 12px 0}.dc-annotation-panel blockquote{margin:0 0 16px;padding:10px 12px;border-left:3px solid #58a6ff;background:#161b22;color:#c9d1d9}",
-      ".dc-annotation-comment{border:1px solid #30363d;border-radius:8px;background:#010409;margin:12px 0;overflow:hidden}.dc-annotation-comment header{display:flex;align-items:center;gap:8px;border-bottom:1px solid #30363d;background:#161b22;padding:9px 11px}.dc-annotation-comment time{color:#8b949e}.dc-annotation-body{padding:11px}.dc-annotation-body img{max-width:100%;height:auto;border-radius:6px}.dc-annotation-body a{color:#58a6ff;text-decoration:underline;text-underline-offset:2px}.dc-annotation-comment-actions{border-top:1px solid #30363d;padding:8px 11px}.dc-annotation-comment-reply{border:0;background:transparent;color:#8b949e;font:700 13px/1 system-ui;cursor:pointer;padding:4px 0}.dc-annotation-comment-reply:hover{color:#58a6ff;text-decoration:underline;text-underline-offset:2px}.dc-annotation-pending{border:1px solid rgba(210,153,34,.55);border-radius:999px;color:#d29922;padding:1px 7px;font-size:12px;font-weight:700}",
+      ".dc-annotation-comment{border:1px solid #30363d;border-radius:8px;background:#010409;margin:12px 0;overflow:hidden}.dc-annotation-comment header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid #30363d;background:#161b22;padding:9px 11px}.dc-annotation-comment time,.dc-annotation-replying{color:#8b949e}.dc-annotation-replying{font-size:12px;font-weight:650}.dc-annotation-replying::before{content:'·';margin-right:8px;color:#6e7681}.dc-annotation-body{padding:11px}.dc-annotation-body img{max-width:100%;height:auto;border-radius:6px}.dc-annotation-body a{color:#58a6ff;text-decoration:underline;text-underline-offset:2px}.dc-annotation-comment-actions{border-top:1px solid #30363d;padding:8px 11px}.dc-annotation-comment-reply{border:0;background:transparent;color:#8b949e;font:700 13px/1 system-ui;cursor:pointer;padding:4px 0}.dc-annotation-comment-reply:hover{color:#58a6ff;text-decoration:underline;text-underline-offset:2px}.dc-annotation-pending{border:1px solid rgba(210,153,34,.55);border-radius:999px;color:#d29922;padding:1px 7px;font-size:12px;font-weight:700}",
       ".dc-annotation-panel-reply{border-top:1px solid #30363d;margin-top:16px;padding-top:16px}.dc-annotation-reply-form,.dc-annotation-comment-reply-form{display:block}.dc-annotation-comment-reply-form{border:1px solid #30363d;border-radius:8px;margin:10px 0 14px;padding:12px;background:#010409}.dc-annotation-reply-form .dc-annotation-title,.dc-annotation-comment-reply-form .dc-annotation-title{font-weight:800;font-size:15px;margin-bottom:8px}",
       ".dc-annotation-toast{position:fixed;z-index:2147483002;left:50%;bottom:24px;transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:min(520px,calc(100vw - 32px));border-radius:8px;padding:11px 14px;background:#161b22;color:#e6edf3;border:1px solid #30363d;box-shadow:0 12px 32px rgba(0,0,0,.3);transition:opacity .16s ease,transform .16s ease;font:14px/1.45 ui-sans-serif,system-ui}.dc-annotation-toast.is-visible{opacity:1;transform:translate(-50%,0)}.dc-annotation-toast.is-success{border-color:#2ea043;color:#3fb950}.dc-annotation-toast.is-warning{border-color:#bb8009;color:#d29922}",
       "@media(max-width:640px){.dc-annotation-grid,.dc-annotation-hints{grid-template-columns:1fr}.dc-annotation-popover{position:fixed!important;left:12px!important;right:12px!important;top:auto!important;bottom:12px!important;width:auto!important;max-height:calc(100vh - 24px);overflow:auto}.dc-annotation-panel{width:100vw}}",
