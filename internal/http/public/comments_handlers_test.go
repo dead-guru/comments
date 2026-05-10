@@ -80,6 +80,15 @@ func TestCreateMessageLocalizesModerationOutcome(t *testing.T) {
 	}
 }
 
+func TestWriteJSONDecodeErrorReturnsPayloadTooLarge(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeJSONDecodeError(rec, "en", &http.MaxBytesError{Limit: 64})
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusRequestEntityTooLarge)
+	}
+}
+
 func TestCreateMessageIncludesRateLimitRetry(t *testing.T) {
 	got := createMessageWithRetry("en", domain.CommentRejected, "rate limit", 90*time.Second)
 	want := "Comment rejected: too many comments were submitted recently. Try again in about 2 minutes."

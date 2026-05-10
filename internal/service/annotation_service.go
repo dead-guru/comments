@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -14,6 +15,7 @@ const (
 	maxAnnotationSelectorLength = 500
 	maxAnnotationQuoteLength    = 2000
 	maxAnnotationContextLength  = 240
+	maxAnnotationMetadataBytes  = 4 << 10
 )
 
 type AnnotationService struct {
@@ -73,6 +75,10 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 	if len([]rune(selectedText)) > maxAnnotationQuoteLength {
 		return AnnotationCreateResult{}, errors.New("selected text is too long")
 	}
+	metadataJSON, err := validateAnnotationMetadataJSON(input.MetadataJSON)
+	if err != nil {
+		return AnnotationCreateResult{}, err
+	}
 	commentResult, err := s.comments.CreateDetailed(ctx, input.CommentCreateInput)
 	if err != nil {
 		return AnnotationCreateResult{}, err
@@ -95,7 +101,7 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 		TextStart:       input.TextStart,
 		TextEnd:         input.TextEnd,
 		TextHash:        repository.AnnotationTextHash(selectedText),
-		MetadataJSON:    input.MetadataJSON,
+		MetadataJSON:    metadataJSON,
 		Comment:         comment,
 	}
 	if err := s.annotations.Create(ctx, annotation); err != nil {
@@ -118,6 +124,23 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 		return AnnotationCreateResult{}, err
 	}
 	return AnnotationCreateResult{CommentResult: commentResult, Annotation: annotation}, nil
+}
+
+func validateAnnotationMetadataJSON(value *string) (*string, error) {
+	if value == nil {
+		return nil, nil
+	}
+	raw := strings.TrimSpace(*value)
+	if raw == "" {
+		return nil, nil
+	}
+	if len([]byte(raw)) > maxAnnotationMetadataBytes {
+		return nil, errors.New("annotation metadata is too large")
+	}
+	if !json.Valid([]byte(raw)) {
+		return nil, errors.New("annotation metadata must be valid JSON")
+	}
+	return &raw, nil
 }
 
 func trimAnnotationPrefix(value string) string {

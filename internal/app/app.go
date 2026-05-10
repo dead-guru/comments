@@ -148,6 +148,7 @@ func New(cfg Config, database *sql.DB) (*App, error) {
 		r.Use(chimiddleware.RealIP)
 	}
 	r.Use(chimiddleware.Recoverer)
+	r.Use(dcmiddleware.BodyLimit(64 << 10))
 	r.Use(dcmiddleware.RequestID)
 	r.Use(dcmiddleware.SecurityHeaders)
 	r.Use(metrics.Middleware)

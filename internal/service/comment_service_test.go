@@ -268,6 +268,47 @@ func TestAnnotationRequiresSelectionAnchor(t *testing.T) {
 	}
 }
 
+func TestAnnotationMetadataJSONValidation(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+	validMetadata := `{"source":"selection-toolbar"}`
+
+	result, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: validInput(nil),
+		Selector:           "#article",
+		SelectedText:       "selected text",
+		MetadataJSON:       &validMetadata,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Annotation.MetadataJSON == nil || *result.Annotation.MetadataJSON != validMetadata {
+		t.Fatalf("expected validated metadata to be stored, got %#v", result.Annotation.MetadataJSON)
+	}
+
+	invalidMetadata := `{"source":`
+	_, err = deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: validInput(nil),
+		Selector:           "#article",
+		SelectedText:       "selected text",
+		MetadataJSON:       &invalidMetadata,
+	})
+	if err == nil || !strings.Contains(err.Error(), "valid JSON") {
+		t.Fatalf("expected invalid metadata JSON error, got %v", err)
+	}
+
+	largeMetadata := `"` + strings.Repeat("x", maxAnnotationMetadataBytes) + `"`
+	_, err = deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: validInput(nil),
+		Selector:           "#article",
+		SelectedText:       "selected text",
+		MetadataJSON:       &largeMetadata,
+	})
+	if err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("expected oversized metadata error, got %v", err)
+	}
+}
+
 func TestReplyCreationStoresTreeFields(t *testing.T) {
 	deps := newTestDeps(t)
 	createSite(t, deps, domain.ModerationAuto)

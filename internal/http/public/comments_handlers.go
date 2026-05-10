@@ -2,6 +2,7 @@ package public
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -68,7 +69,7 @@ func (h *Handlers) APICreateComment(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
-		writeJSONError(w, i18n.Text(locale, "invalid_json"), http.StatusBadRequest)
+		writeJSONDecodeError(w, locale, err)
 		return
 	}
 	locale := i18n.Normalize(payload.Locale, r.Header.Get("Accept-Language"))
@@ -131,7 +132,7 @@ func (h *Handlers) APIPreviewComment(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
-		writeJSONError(w, i18n.Text(locale, "invalid_json"), http.StatusBadRequest)
+		writeJSONDecodeError(w, locale, err)
 		return
 	}
 	locale := i18n.Normalize(payload.Locale, r.Header.Get("Accept-Language"))
@@ -248,6 +249,15 @@ func secondsCeil(d time.Duration) int {
 		return 0
 	}
 	return int((d + time.Second - 1) / time.Second)
+}
+
+func writeJSONDecodeError(w http.ResponseWriter, locale string, err error) {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		writeJSONError(w, "request body is too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	writeJSONError(w, i18n.Text(locale, "invalid_json"), http.StatusBadRequest)
 }
 
 func rejectedMessage(locale string, reason string) string {

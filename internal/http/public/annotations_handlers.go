@@ -65,7 +65,7 @@ func (h *Handlers) APICreateAnnotation(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		locale := i18n.Normalize(r.URL.Query().Get("locale"), r.Header.Get("Accept-Language"))
-		writeJSONError(w, i18n.Text(locale, "invalid_json"), http.StatusBadRequest)
+		writeJSONDecodeError(w, locale, err)
 		return
 	}
 	locale := i18n.Normalize(payload.Locale, r.Header.Get("Accept-Language"))
@@ -158,6 +158,8 @@ func createAnnotationErrorMessage(locale string, err error) string {
 		return i18n.Text(locale, "annotation_selected_required")
 	case strings.Contains(msg, "annotation selector"):
 		return i18n.Text(locale, "annotation_anchor_invalid")
+	case strings.Contains(msg, "annotation metadata"):
+		return err.Error()
 	default:
 		return createErrorMessage(locale, err)
 	}
@@ -169,7 +171,7 @@ func statusForAnnotationError(err error) int {
 	}
 	msg := strings.ToLower(err.Error())
 	switch {
-	case strings.Contains(msg, "selected text"), strings.Contains(msg, "annotation selector"):
+	case strings.Contains(msg, "selected text"), strings.Contains(msg, "annotation selector"), strings.Contains(msg, "annotation metadata"):
 		return http.StatusBadRequest
 	default:
 		return statusForCreateError(err)
