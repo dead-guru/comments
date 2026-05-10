@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"deadcomments/internal/db"
@@ -274,6 +275,79 @@ func TestDuplicateAnnotationCitationBecomesReply(t *testing.T) {
 	}
 	if got := len(annotations[0].Comment.Children); got != 1 {
 		t.Fatalf("expected duplicate submit to appear as one reply, got %d", got)
+	}
+}
+
+func TestConcurrentDuplicateAnnotationCitationCreatesOneRoot(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+	const attempts = 8
+	var wg sync.WaitGroup
+	results := make(chan AnnotationCreateResult, attempts)
+	errs := make(chan error, attempts)
+	for i := 0; i < attempts; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			result, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+				CommentCreateInput: domain.CommentCreateInput{
+					SiteKey:      "test-site",
+					PageKey:      "/posts/concurrent",
+					PageTitle:    "Concurrent",
+					PageURL:      "https://blog.example/posts/concurrent",
+					AuthorName:   "User " + strconv.Itoa(i),
+					BodyMarkdown: "Concurrent annotation " + strconv.Itoa(i),
+					Origin:       "https://blog.example",
+					IP:           "203.0.113." + strconv.Itoa(i+10),
+					UserAgent:    "test",
+				},
+				Selector:     "#article",
+				SelectedText: "selected text",
+				TextStart:    int64Ptr(int64(i)),
+				TextEnd:      int64Ptr(int64(i + len("selected text"))),
+			})
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- result
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	created := 0
+	reused := 0
+	annotationIDs := map[string]bool{}
+	for result := range results {
+		if result.Reused {
+			reused++
+		} else {
+			created++
+		}
+		if result.Annotation == nil {
+			t.Fatal("expected annotation in result")
+		}
+		annotationIDs[result.Annotation.ID] = true
+	}
+	if created != 1 || reused != attempts-1 {
+		t.Fatalf("expected one created root and %d reused replies, got created=%d reused=%d", attempts-1, created, reused)
+	}
+	if len(annotationIDs) != 1 {
+		t.Fatalf("expected all attempts to resolve to one annotation id, got %v", annotationIDs)
+	}
+	_, annotations, err := deps.annotationSvc.PublicByPage(context.Background(), "test-site", "/posts/concurrent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(annotations) != 1 {
+		t.Fatalf("expected one annotation root, got %d", len(annotations))
+	}
+	if got := len(annotations[0].Comment.Children); got != attempts-1 {
+		t.Fatalf("expected %d replies on annotation root, got %d", attempts-1, got)
 	}
 }
 

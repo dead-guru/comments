@@ -5,9 +5,12 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"strings"
 
 	"deadcomments/internal/domain"
+	modernsqlite "modernc.org/sqlite"
+	sqlite "modernc.org/sqlite/lib"
 )
 
 type AnnotationRepository struct {
@@ -152,6 +155,10 @@ func AnnotationCitationKey(selector, textHash string) string {
 func IsAnnotationCitationConflict(err error) bool {
 	if err == nil {
 		return false
+	}
+	var sqliteErr *modernsqlite.Error
+	if errors.As(err, &sqliteErr) {
+		return sqliteErr.Code() == sqlite.SQLITE_CONSTRAINT_UNIQUE
 	}
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "unique") &&
