@@ -31,6 +31,7 @@ type AnnotationService struct {
 type AnnotationCreateResult struct {
 	CommentResult CommentCreateResult
 	Annotation    *domain.Annotation
+	Reused        bool
 }
 
 func NewAnnotationService(sites *repository.SiteRepository, annotations *repository.AnnotationRepository, comments *CommentService, events ...event.Publisher) *AnnotationService {
@@ -85,6 +86,35 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 	if err != nil {
 		return AnnotationCreateResult{}, err
 	}
+	textHash := repository.AnnotationTextHash(selectedText)
+	citationKey := repository.AnnotationCitationKey(selector, textHash)
+	_, page, err := s.comments.resolveCreateTarget(ctx, input.CommentCreateInput)
+	if err != nil {
+		return AnnotationCreateResult{}, err
+	}
+	existing, err := s.annotations.ActiveByPageCitationKey(ctx, page.ID, citationKey)
+	if err != nil {
+		return AnnotationCreateResult{}, err
+	}
+	if existing != nil && existing.Comment != nil {
+		parentID := existing.Comment.ID
+		input.CommentCreateInput.ParentID = &parentID
+		commentResult, err := s.comments.CreateDetailed(ctx, input.CommentCreateInput)
+		if err != nil {
+			return AnnotationCreateResult{}, err
+		}
+		comment := commentResult.Comment
+		if comment == nil {
+			return AnnotationCreateResult{CommentResult: commentResult, Annotation: existing, Reused: true}, nil
+		}
+		name := existing.Comment.AuthorDisplayName
+		if name == "" {
+			name = existing.Comment.AuthorName
+		}
+		comment.ReplyingToAuthor = &name
+		existing.Comment.Children = append(existing.Comment.Children, comment)
+		return AnnotationCreateResult{CommentResult: commentResult, Annotation: existing, Reused: true}, nil
+	}
 	commentResult, err := s.comments.CreateDetailed(ctx, input.CommentCreateInput)
 	if err != nil {
 		return AnnotationCreateResult{}, err
@@ -101,12 +131,13 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 		PageKey:         comment.PageKey,
 		CommentID:       comment.ID,
 		Selector:        selector,
+		CitationKey:     citationKey,
 		SelectedText:    selectedText,
 		SelectionPrefix: prefix,
 		SelectionSuffix: suffix,
 		TextStart:       input.TextStart,
 		TextEnd:         input.TextEnd,
-		TextHash:        repository.AnnotationTextHash(selectedText),
+		TextHash:        textHash,
 		MetadataJSON:    metadataJSON,
 		Comment:         comment,
 	}
@@ -124,6 +155,7 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 			"selector":          selector,
 			"selected_text_len": len([]rune(selectedText)),
 			"text_hash":         annotation.TextHash,
+			"citation_key":      annotation.CitationKey,
 			"comment_status":    comment.Status,
 		},
 	}); err != nil {

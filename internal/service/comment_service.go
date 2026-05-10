@@ -48,26 +48,9 @@ func (s *CommentService) Create(ctx context.Context, input domain.CommentCreateI
 }
 
 func (s *CommentService) CreateDetailed(ctx context.Context, input domain.CommentCreateInput) (CommentCreateResult, error) {
-	site, err := s.sites.ByKey(ctx, input.SiteKey)
+	site, page, err := s.resolveCreateTarget(ctx, input)
 	if err != nil {
 		return CommentCreateResult{}, err
-	}
-	if site == nil {
-		return CommentCreateResult{}, errors.New("site not found")
-	}
-	origin := firstNonEmpty(input.Origin, input.Referer)
-	if !NewSiteService(s.sites).OriginAllowed(site, origin) {
-		return CommentCreateResult{}, errors.New("origin is not allowed for this site")
-	}
-	page, err := s.findOrCreatePage(ctx, site, input.PageKey, input.PageTitle, input.PageURL)
-	if err != nil {
-		return CommentCreateResult{}, err
-	}
-	if page == nil {
-		return CommentCreateResult{}, errors.New("page not found")
-	}
-	if !page.CanPost() {
-		return CommentCreateResult{}, errors.New("page does not allow new comments")
 	}
 	identity, err := s.identities.ResolveForComment(ctx, site.ID, input.AuthorName)
 	if err != nil {
@@ -109,6 +92,35 @@ func (s *CommentService) CreateDetailed(ctx context.Context, input domain.Commen
 	if err != nil {
 		return CommentCreateResult{}, err
 	}
+	return s.createResolved(ctx, site, page, parent, identity, input, bodyHTML, ipHash, decision)
+}
+
+func (s *CommentService) resolveCreateTarget(ctx context.Context, input domain.CommentCreateInput) (*domain.Site, *domain.Page, error) {
+	site, err := s.sites.ByKey(ctx, input.SiteKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	if site == nil {
+		return nil, nil, errors.New("site not found")
+	}
+	origin := firstNonEmpty(input.Origin, input.Referer)
+	if !NewSiteService(s.sites).OriginAllowed(site, origin) {
+		return nil, nil, errors.New("origin is not allowed for this site")
+	}
+	page, err := s.findOrCreatePage(ctx, site, input.PageKey, input.PageTitle, input.PageURL)
+	if err != nil {
+		return nil, nil, err
+	}
+	if page == nil {
+		return nil, nil, errors.New("page not found")
+	}
+	if !page.CanPost() {
+		return nil, nil, errors.New("page does not allow new comments")
+	}
+	return site, page, nil
+}
+
+func (s *CommentService) createResolved(ctx context.Context, site *domain.Site, page *domain.Page, parent *domain.Comment, identity domain.IdentityResolution, input domain.CommentCreateInput, bodyHTML, ipHash string, decision domain.ModerationDecision) (CommentCreateResult, error) {
 	c := &domain.Comment{
 		ID:                newID(),
 		SiteID:            site.ID,

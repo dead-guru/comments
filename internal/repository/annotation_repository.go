@@ -21,15 +21,25 @@ func NewAnnotationRepository(db *sql.DB) *AnnotationRepository {
 func (r *AnnotationRepository) Create(ctx context.Context, a *domain.Annotation) error {
 	now := nowString()
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO annotations(id, site_id, page_id, comment_id, selector, selected_text, selection_prefix, selection_suffix, text_start, text_end, text_hash, metadata_json, created_at, updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		a.ID, a.SiteID, a.PageID, a.CommentID, a.Selector, a.SelectedText, a.SelectionPrefix, a.SelectionSuffix, a.TextStart, a.TextEnd, a.TextHash, a.MetadataJSON, now, now)
+		INSERT INTO annotations(id, site_id, page_id, comment_id, selector, citation_key, selected_text, selection_prefix, selection_suffix, text_start, text_end, text_hash, metadata_json, created_at, updated_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		a.ID, a.SiteID, a.PageID, a.CommentID, a.Selector, a.CitationKey, a.SelectedText, a.SelectionPrefix, a.SelectionSuffix, a.TextStart, a.TextEnd, a.TextHash, a.MetadataJSON, now, now)
 	if err != nil {
 		return err
 	}
 	a.CreatedAt = parseTime(now)
 	a.UpdatedAt = parseTime(now)
 	return nil
+}
+
+func (r *AnnotationRepository) ActiveByPageCitationKey(ctx context.Context, pageID int64, citationKey string) (*domain.Annotation, error) {
+	row := r.db.QueryRowContext(ctx, annotationSelectSQL+`
+		WHERE annotations.page_id=?
+			AND annotations.citation_key=?
+			AND comments.status IN ('pending', 'approved')
+		ORDER BY annotations.created_at, annotations.id
+		LIMIT 1`, pageID, citationKey)
+	return scanAnnotation(row)
 }
 
 func (r *AnnotationRepository) ApprovedByPage(ctx context.Context, pageID int64) ([]*domain.Annotation, error) {
@@ -126,6 +136,10 @@ func AnnotationTextHash(value string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func AnnotationCitationKey(selector, textHash string) string {
+	return strings.ToLower(strings.TrimSpace(selector)) + "|" + strings.TrimSpace(textHash)
+}
+
 const annotationSelectSQL = `
 SELECT
 	annotations.id,
@@ -135,6 +149,7 @@ SELECT
 	pages.page_key,
 	annotations.comment_id,
 	annotations.selector,
+	COALESCE(annotations.citation_key, ''),
 	annotations.selected_text,
 	annotations.selection_prefix,
 	annotations.selection_suffix,
@@ -208,6 +223,7 @@ func scanAnnotation(scanner interface{ Scan(...any) error }) (*domain.Annotation
 		&a.PageKey,
 		&a.CommentID,
 		&a.Selector,
+		&a.CitationKey,
 		&a.SelectedText,
 		&a.SelectionPrefix,
 		&a.SelectionSuffix,

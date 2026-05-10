@@ -209,6 +209,74 @@ func TestAnnotationCreationUsesCommentPipeline(t *testing.T) {
 	}
 }
 
+func TestDuplicateAnnotationCitationBecomesReply(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+	start := int64(11)
+	end := int64(24)
+	first, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: domain.CommentCreateInput{
+			SiteKey:      "test-site",
+			PageKey:      "/posts/inline",
+			PageTitle:    "Inline",
+			PageURL:      "https://blog.example/posts/inline",
+			AuthorName:   "Root",
+			BodyMarkdown: "First annotation",
+			Origin:       "https://blog.example",
+			IP:           "203.0.113.1",
+			UserAgent:    "test",
+		},
+		Selector:     "#article",
+		SelectedText: "selected text",
+		TextStart:    &start,
+		TextEnd:      &end,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shiftedStart := int64(100)
+	shiftedEnd := int64(113)
+	second, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: domain.CommentCreateInput{
+			SiteKey:      "test-site",
+			PageKey:      "/posts/inline",
+			PageTitle:    "Inline",
+			PageURL:      "https://blog.example/posts/inline",
+			AuthorName:   "Reply",
+			BodyMarkdown: "Same citation",
+			Origin:       "https://blog.example",
+			IP:           "203.0.113.2",
+			UserAgent:    "test",
+		},
+		Selector:     "#article",
+		SelectedText: "selected text",
+		TextStart:    &shiftedStart,
+		TextEnd:      &shiftedEnd,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !second.Reused {
+		t.Fatal("expected duplicate citation to reuse the existing annotation thread")
+	}
+	if second.Annotation.ID != first.Annotation.ID {
+		t.Fatalf("expected same annotation id, got first=%s second=%s", first.Annotation.ID, second.Annotation.ID)
+	}
+	if second.CommentResult.Comment.ParentID == nil || *second.CommentResult.Comment.ParentID != first.Annotation.Comment.ID {
+		t.Fatalf("expected second comment to become a reply to the annotation root")
+	}
+	_, annotations, err := deps.annotationSvc.PublicByPage(context.Background(), "test-site", "/posts/inline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(annotations) != 1 {
+		t.Fatalf("expected one public annotation root after duplicate submit, got %d", len(annotations))
+	}
+	if got := len(annotations[0].Comment.Children); got != 1 {
+		t.Fatalf("expected duplicate submit to appear as one reply, got %d", got)
+	}
+}
+
 func TestAnnotationPublicByPageIncludesApprovedReplies(t *testing.T) {
 	deps := newTestDeps(t)
 	createSite(t, deps, domain.ModerationAuto)

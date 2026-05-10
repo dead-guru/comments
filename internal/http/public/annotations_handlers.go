@@ -102,11 +102,13 @@ func (h *Handlers) APICreateAnnotation(w http.ResponseWriter, r *http.Request) {
 	status := statusForCreatedComment(comment.Status)
 	message := createMessageWithRetry(locale, comment.Status, reason, result.CommentResult.RetryAfter)
 	response := map[string]any{
-		"id":         result.Annotation.ID,
-		"status":     comment.Status,
-		"message":    message,
-		"reason":     reason,
-		"annotation": toPublicAnnotation(result.Annotation),
+		"id":              result.Annotation.ID,
+		"status":          comment.Status,
+		"message":         message,
+		"reason":          reason,
+		"annotation":      toPublicAnnotation(result.Annotation),
+		"comment":         toPublicComment(comment),
+		"reused_existing": result.Reused,
 	}
 	if result.CommentResult.RetryAfter > 0 {
 		response["retry_after_seconds"] = secondsCeil(result.CommentResult.RetryAfter)

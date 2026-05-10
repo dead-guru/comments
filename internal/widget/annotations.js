@@ -398,13 +398,16 @@
       });
     }).then(function (data) {
       var annotation = data.annotation;
+      var createdComment = data.comment || (annotation && annotation.comment);
       if (!panelRootForm) closePopover();
       if (annotation) {
         annotation._localPending = data.status === "pending";
         addAnnotations([annotation]);
-        notifyCommentsWidget(annotation);
+        if (data.reused_existing && createdComment) notifyCommentsWidgetComment(createdComment, annotation.id);
+        else notifyCommentsWidget(annotation);
         if (panelRootForm) {
-          appendAnnotationToOpenPanel(annotation);
+          if (data.reused_existing && createdComment) appendCommentToOpenPanel(groupKey(annotation), createdComment);
+          else appendAnnotationToOpenPanel(annotation);
           form.elements.body_markdown.value = "";
           setFormMessage(form, data.message || (data.status === "pending" ? t("pending") : t("posted")), data.status === "pending" ? "warning" : "success");
         } else {
@@ -529,17 +532,18 @@
       known[annotation.id] = annotation;
     });
     var fresh = [];
+    var changedExisting = false;
     items.forEach(function (annotation) {
       if (!annotation || !annotation.id) return;
       if (known[annotation.id]) {
-        mergeAnnotationReplies(known[annotation.id], annotation);
+        if (mergeAnnotationReplies(known[annotation.id], annotation)) changedExisting = true;
         return;
       }
       known[annotation.id] = annotation;
       annotations.push(annotation);
       fresh.push(annotation);
     });
-    if (fresh.length === 0) return;
+    if (fresh.length === 0 && !changedExisting) return;
     renderHighlights();
   }
 
@@ -564,7 +568,11 @@
   }
 
   function groupKey(annotation) {
-    return [annotation.selector, annotation.text_start, annotation.text_end, annotation.text_hash || annotation.selected_text].join("|");
+    return [annotation.selector, annotation.text_hash || normalizedAnnotationText(annotation.selected_text)].join("|");
+  }
+
+  function normalizedAnnotationText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
   }
 
   function renderHighlights() {

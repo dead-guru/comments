@@ -10,6 +10,7 @@ type Annotation struct {
 	PageKey         string
 	CommentID       string
 	Selector        string
+	CitationKey     string
 	SelectedText    string
 	SelectionPrefix string
 	SelectionSuffix string
