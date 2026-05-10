@@ -41,6 +41,11 @@ func (r *CommentRepository) UpdateTreeFields(ctx context.Context, id string, roo
 	return err
 }
 
+func (r *CommentRepository) Reparent(ctx context.Context, id string, parentID, rootID *string, depth int, path string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE comments SET parent_id=?, root_id=?, depth=?, path=?, updated_at=? WHERE id=?`, parentID, rootID, depth, path, nowString(), id)
+	return err
+}
+
 func (r *CommentRepository) ByID(ctx context.Context, id string) (*domain.Comment, error) {
 	row := r.db.QueryRowContext(ctx, commentSelectSQL+` WHERE comments.id=?`, id)
 	return scanComment(row)

@@ -42,6 +42,15 @@ func (r *AnnotationRepository) ActiveByPageCitationKey(ctx context.Context, page
 	return scanAnnotation(row)
 }
 
+func (r *AnnotationRepository) ByPageCitationKey(ctx context.Context, pageID int64, citationKey string) (*domain.Annotation, error) {
+	row := r.db.QueryRowContext(ctx, annotationSelectSQL+`
+		WHERE annotations.page_id=?
+			AND annotations.citation_key=?
+		ORDER BY annotations.created_at, annotations.id
+		LIMIT 1`, pageID, citationKey)
+	return scanAnnotation(row)
+}
+
 func (r *AnnotationRepository) ApprovedByPage(ctx context.Context, pageID int64) ([]*domain.Annotation, error) {
 	rows, err := r.db.QueryContext(ctx, annotationSelectSQL+` WHERE annotations.page_id=? AND comments.status='approved' ORDER BY annotations.created_at`, pageID)
 	if err != nil {
@@ -138,6 +147,15 @@ func AnnotationTextHash(value string) string {
 
 func AnnotationCitationKey(selector, textHash string) string {
 	return strings.ToLower(strings.TrimSpace(selector)) + "|" + strings.TrimSpace(textHash)
+}
+
+func IsAnnotationCitationConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique") &&
+		(strings.Contains(message, "citation_key") || strings.Contains(message, "idx_annotations_page_citation_key_unique"))
 }
 
 const annotationSelectSQL = `

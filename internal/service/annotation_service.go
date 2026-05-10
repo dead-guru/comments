@@ -12,6 +12,8 @@ import (
 	"deadcomments/internal/repository"
 )
 
+var errAnnotationCitationUnavailable = errors.New("annotation selection is no longer available")
+
 const (
 	maxAnnotationSelectorLength = 500
 	maxAnnotationQuoteLength    = 2000
@@ -92,11 +94,14 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 	if err != nil {
 		return AnnotationCreateResult{}, err
 	}
-	existing, err := s.annotations.ActiveByPageCitationKey(ctx, page.ID, citationKey)
+	existing, err := s.annotations.ByPageCitationKey(ctx, page.ID, citationKey)
 	if err != nil {
 		return AnnotationCreateResult{}, err
 	}
 	if existing != nil && existing.Comment != nil {
+		if !annotationCommentReusable(existing.Comment) {
+			return AnnotationCreateResult{}, errAnnotationCitationUnavailable
+		}
 		parentID := existing.Comment.ID
 		input.CommentCreateInput.ParentID = &parentID
 		commentResult, err := s.comments.CreateDetailed(ctx, input.CommentCreateInput)
@@ -142,6 +147,9 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 		Comment:         comment,
 	}
 	if err := s.annotations.Create(ctx, annotation); err != nil {
+		if repository.IsAnnotationCitationConflict(err) {
+			return s.reuseExistingCitation(ctx, page.ID, citationKey, commentResult)
+		}
 		return AnnotationCreateResult{}, err
 	}
 	if err := publish(ctx, s.events, domain.Event{
@@ -162,6 +170,46 @@ func (s *AnnotationService) CreateDetailed(ctx context.Context, input domain.Ann
 		return AnnotationCreateResult{}, err
 	}
 	return AnnotationCreateResult{CommentResult: commentResult, Annotation: annotation}, nil
+}
+
+func annotationCommentReusable(comment *domain.Comment) bool {
+	return comment != nil && (comment.Status == domain.CommentPending || comment.Status == domain.CommentApproved)
+}
+
+func (s *AnnotationService) reuseExistingCitation(ctx context.Context, pageID int64, citationKey string, commentResult CommentCreateResult) (AnnotationCreateResult, error) {
+	comment := commentResult.Comment
+	if comment == nil {
+		return AnnotationCreateResult{CommentResult: commentResult, Reused: true}, nil
+	}
+	existing, err := s.annotations.ByPageCitationKey(ctx, pageID, citationKey)
+	if err != nil {
+		return AnnotationCreateResult{}, err
+	}
+	if existing == nil || existing.Comment == nil {
+		return AnnotationCreateResult{}, errors.New("annotation citation conflict could not be resolved")
+	}
+	if !annotationCommentReusable(existing.Comment) {
+		_ = s.comments.SetStatus(ctx, comment.ID, domain.CommentDeleted)
+		return AnnotationCreateResult{}, errAnnotationCitationUnavailable
+	}
+	parentID := existing.Comment.ID
+	rootID := existing.Comment.ID
+	depth := existing.Comment.Depth + 1
+	path := repository.CommentPath(existing.Comment, comment.ID)
+	if err := s.comments.comments.Reparent(ctx, comment.ID, &parentID, &rootID, depth, path); err != nil {
+		return AnnotationCreateResult{}, err
+	}
+	comment.ParentID = &parentID
+	comment.RootID = &rootID
+	comment.Depth = depth
+	comment.Path = path
+	name := existing.Comment.AuthorDisplayName
+	if name == "" {
+		name = existing.Comment.AuthorName
+	}
+	comment.ReplyingToAuthor = &name
+	existing.Comment.Children = append(existing.Comment.Children, comment)
+	return AnnotationCreateResult{CommentResult: commentResult, Annotation: existing, Reused: true}, nil
 }
 
 func validateAnnotationMetadataJSON(value *string) (*string, error) {

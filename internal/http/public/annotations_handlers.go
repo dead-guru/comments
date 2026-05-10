@@ -164,6 +164,8 @@ func createAnnotationErrorMessage(locale string, err error) string {
 		return i18n.Text(locale, "annotation_anchor_invalid")
 	case strings.Contains(msg, "annotation metadata"):
 		return err.Error()
+	case strings.Contains(msg, "selection is no longer available"):
+		return "This annotation selection is no longer available."
 	default:
 		return createErrorMessage(locale, err)
 	}
@@ -177,6 +179,8 @@ func statusForAnnotationError(err error) int {
 	switch {
 	case strings.Contains(msg, "selected text"), strings.Contains(msg, "annotation selector"), strings.Contains(msg, "annotation metadata"):
 		return http.StatusBadRequest
+	case strings.Contains(msg, "selection is no longer available"):
+		return http.StatusConflict
 	default:
 		return statusForCreateError(err)
 	}

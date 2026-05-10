@@ -277,6 +277,56 @@ func TestDuplicateAnnotationCitationBecomesReply(t *testing.T) {
 	}
 }
 
+func TestAnnotationCitationUniqueIndexRejectsDuplicateRoot(t *testing.T) {
+	deps := newTestDeps(t)
+	createSite(t, deps, domain.ModerationAuto)
+	first, err := deps.annotationSvc.CreateDetailed(context.Background(), domain.AnnotationCreateInput{
+		CommentCreateInput: domain.CommentCreateInput{
+			SiteKey:      "test-site",
+			PageKey:      "/posts/inline",
+			PageTitle:    "Inline",
+			PageURL:      "https://blog.example/posts/inline",
+			AuthorName:   "Root",
+			BodyMarkdown: "First annotation",
+			Origin:       "https://blog.example",
+			IP:           "203.0.113.1",
+			UserAgent:    "test",
+		},
+		Selector:     "#article",
+		SelectedText: "selected text",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	duplicateComment, _, err := deps.commentSvc.Create(context.Background(), domain.CommentCreateInput{
+		SiteKey:      "test-site",
+		PageKey:      "/posts/inline",
+		PageTitle:    "Inline",
+		PageURL:      "https://blog.example/posts/inline",
+		AuthorName:   "Duplicate",
+		BodyMarkdown: "Duplicate root",
+		Origin:       "https://blog.example",
+		IP:           "203.0.113.9",
+		UserAgent:    "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = deps.annotations.Create(context.Background(), &domain.Annotation{
+		ID:           "duplicate-annotation",
+		SiteID:       first.Annotation.SiteID,
+		PageID:       first.Annotation.PageID,
+		CommentID:    duplicateComment.ID,
+		Selector:     first.Annotation.Selector,
+		CitationKey:  first.Annotation.CitationKey,
+		SelectedText: first.Annotation.SelectedText,
+		TextHash:     first.Annotation.TextHash,
+	})
+	if !repository.IsAnnotationCitationConflict(err) {
+		t.Fatalf("expected annotation citation unique conflict, got %v", err)
+	}
+}
+
 func TestAnnotationPublicByPageIncludesApprovedReplies(t *testing.T) {
 	deps := newTestDeps(t)
 	createSite(t, deps, domain.ModerationAuto)
