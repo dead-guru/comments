@@ -87,7 +87,18 @@ For Docker Compose, copy `.env.example` to `.env` and fill in the same values. G
 
 Use explicit `data-page` keys. `data-page="auto"` is supported as a convenience and resolves to `location.pathname + location.search`.
 
-Use `data-theme="inherit"` when embedding into a page whose colors should drive the widget. The host script reads the target container's computed text/background colors and sends safe theme variables into the iframe.
+Comments widget attributes:
+
+| Attribute | Required | Default | Values | Notes |
+| --- | --- | --- | --- | --- |
+| `data-site` | yes | none | site key | Site key configured in the admin panel. |
+| `data-page` | yes | none | explicit page key, or `auto` | Prefer explicit stable page keys. `auto` resolves to `location.pathname + location.search`. |
+| `data-target` | no | `#comments` | CSS selector | Container where the iframe is mounted. Falls back to the script parent element. |
+| `data-theme` | no | `auto` | `auto`, `light`, `dark`, `minimal`, `inherit` | `inherit` reads host container colors and sends safe CSS variables into the iframe. |
+| `data-sort` | no | `oldest` | `oldest`, `newest`, `best` | Initial public comment order. `best` currently means most active approved thread first. |
+| `data-input-position` | no | `bottom` | `top`, `bottom` | Main form placement relative to the comment list. |
+| `data-show-annotations` | no | `true` | `true`, `false` | Set to `false` to keep annotation comments out of the bottom page-level thread. |
+| `data-locale` | no | host `<html lang>` or browser language | `en`, `uk` | Unsupported locales fall back to English. |
 
 Host applications can also control both the comments iframe and inline annotation UI explicitly:
 
@@ -95,17 +106,11 @@ Host applications can also control both the comments iframe and inline annotatio
 window.deadcomments?.setTheme("dark")
 window.deadcomments?.setTheme("light")
 window.deadcomments?.setTheme("auto")
+window.deadcomments?.setTheme("minimal")
+window.deadcomments?.setTheme("inherit")
 ```
 
 This is the recommended integration point for site-level theme switches. The API updates every loaded deadcomments widget on the page, including the annotation sidebar.
-
-Use `data-locale="uk"` for Ukrainian widget copy. Supported locales are `en` and `uk`; unsupported values fall back to English. If `data-locale` is omitted, the widget uses the host page `<html lang>` or browser language.
-
-Use `data-input-position="top"` to render the main comment form above the comment list. The default is `bottom`.
-
-Use `data-show-annotations="false"` when inline annotations are enabled but the bottom comments widget should show only regular page comments. The default is `true`, which keeps annotation comments visible in the page-level thread with an annotation label and quote.
-
-Use `data-sort="oldest"`, `data-sort="newest"`, or `data-sort="best"` to choose the default public comment order. The `best` sort currently means the most active approved thread first; future reactions or ratings can replace that ranking signal without changing the public API.
 
 ## Inline Annotations
 
@@ -124,12 +129,16 @@ Deadcomments can also run Medium-style comments bound to selected text on the ho
 
 Useful attributes:
 
-- `data-site`: required site key.
-- `data-page`: explicit page key. `auto` falls back to `location.pathname + location.search`.
-- `data-content-selector`: CSS selector for the content area where text selection can create annotations. Default: `article, main`.
-- `data-min-selection-length`: minimum selected characters. Default: `2`.
-- `data-max-selection-length`: maximum selected characters stored as a quote. Default: `2000`.
-- `data-locale`: `en` or `uk`.
+| Attribute | Required | Default | Values | Notes |
+| --- | --- | --- | --- | --- |
+| `data-site` | yes | none | site key | Site key configured in the admin panel. |
+| `data-page` | yes | none | explicit page key, or `auto` | Prefer explicit stable page keys. `auto` resolves to `location.pathname + location.search`. |
+| `data-content-selector` | no | `article, main` | CSS selector | Content area where text selection can create annotations. |
+| `data-selector` | no | none | CSS selector | Backward-compatible alias for `data-content-selector`. |
+| `data-theme` | no | `auto` | `auto`, `light`, `dark`, `minimal`, `inherit` | Controls annotation popovers and sidebar. Can also be changed through `window.deadcomments.setTheme(...)`. |
+| `data-locale` | no | host `<html lang>` or browser language | `en`, `uk` | Unsupported locales fall back to English. |
+| `data-min-selection-length` | no | `2` | `1`-`200` | Minimum selected characters. Values outside the range are clamped. |
+| `data-max-selection-length` | no | `2000` | `100`-`5000` | Maximum selected characters stored as a quote. Values outside the range are clamped. |
 
 Annotations store the selected quote, a root selector, surrounding text context, optional text offsets, and a stable text hash. If the article HTML changes later, the script first tries the stored offsets and then falls back to finding the selected quote inside the configured root. If the quote no longer exists, the annotation remains in storage and the API but is not highlighted on that page render.
 
