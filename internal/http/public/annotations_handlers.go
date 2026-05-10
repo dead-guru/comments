@@ -1,6 +1,7 @@
 package public
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,7 +37,7 @@ func (h *Handlers) APIListAnnotations(w http.ResponseWriter, r *http.Request) {
 	resp.Page.Key = page.PageKey
 	resp.Page.State = string(page.State)
 	resp.Annotations = toPublicAnnotations(annotations)
-	writeJSON(w, resp, http.StatusOK)
+	writeConditionalJSON(w, r, resp, http.StatusOK)
 }
 
 func (h *Handlers) APICreateAnnotation(w http.ResponseWriter, r *http.Request) {
@@ -80,8 +81,8 @@ func (h *Handlers) APICreateAnnotation(w http.ResponseWriter, r *http.Request) {
 			AuthorWebsite: payload.AuthorWebsite,
 			BodyMarkdown:  payload.BodyMarkdown,
 			Honeypot:      payload.Honeypot,
-			Origin:        r.Header.Get("Origin"),
-			Referer:       firstValue(r.Header.Get("Referer")),
+			Origin:        originFromRequest(r),
+			Referer:       normalizeOrigin(r.Header.Get("Referer")),
 			IP:            clientIP(r),
 			UserAgent:     r.UserAgent(),
 		},
@@ -144,7 +145,8 @@ func (h *Handlers) setSiteCORS(w http.ResponseWriter, r *http.Request, siteKey s
 	}
 	w.Header().Set("Access-Control-Allow-Origin", origin)
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, If-None-Match")
+	w.Header().Set("Access-Control-Expose-Headers", "ETag")
 	w.Header().Set("Access-Control-Max-Age", "600")
 	w.Header().Add("Vary", "Origin")
 	return true
@@ -204,4 +206,33 @@ func toPublicAnnotation(annotation *domain.Annotation) *domain.PublicAnnotation 
 		CreatedAt:       annotation.CreatedAt,
 		Comment:         toPublicComment(annotation.Comment),
 	}
+}
+
+func writeConditionalJSON(w http.ResponseWriter, r *http.Request, v any, status int) {
+	body, err := json.Marshal(v)
+	if err != nil {
+		writeJSONError(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+	sum := sha256.Sum256(body)
+	etag := fmt.Sprintf(`W/"%x"`, sum[:])
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "no-cache")
+	if ifNoneMatchIncludes(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write(body)
+}
+
+func ifNoneMatchIncludes(header, etag string) bool {
+	for _, value := range strings.Split(header, ",") {
+		value = strings.TrimSpace(value)
+		if value == "*" || value == etag {
+			return true
+		}
+	}
+	return false
 }

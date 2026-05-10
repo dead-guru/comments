@@ -48,6 +48,11 @@
   var selectionTimer = null;
   var pointerSelecting = false;
   var messageTimer = null;
+  var annotationETag = "";
+  var pollTimer = null;
+  var ANNOTATION_POLL_INTERVAL_MS = 30000;
+  var ANNOTATION_POLL_JITTER_MS = 5000;
+  var ANNOTATION_CONTEXT_CHARS = 240;
 
   if (!site) return;
   if (!page || page === "auto") page = window.location.pathname + window.location.search;
@@ -59,7 +64,7 @@
   applyAnnotationTheme(theme);
   registerDeadcommentsInstance({setTheme: applyAnnotationTheme});
   assignRootAnchors();
-  loadAnnotations();
+  loadAnnotations().finally(scheduleAnnotationPoll);
 
   document.addEventListener(window.PointerEvent ? "pointerdown" : "mousedown", function (event) {
     if (annotationChrome(event.target)) return;
@@ -95,7 +100,11 @@
     }
   });
   window.addEventListener("resize", closePopover);
-  window.setInterval(loadAnnotations, 30000);
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) return;
+    window.clearTimeout(pollTimer);
+    loadAnnotations().finally(scheduleAnnotationPoll);
+  });
 
   function annotationChrome(target) {
     if (!target || typeof target.closest !== "function") return false;
@@ -257,11 +266,11 @@
   }
 
   function contextBefore(text, offset) {
-    return text.slice(Math.max(0, offset - 160), offset).trim();
+    return text.slice(Math.max(0, offset - ANNOTATION_CONTEXT_CHARS), offset).trim();
   }
 
   function contextAfter(text, offset) {
-    return text.slice(offset, Math.min(text.length, offset + 160)).trim();
+    return text.slice(offset, Math.min(text.length, offset + ANNOTATION_CONTEXT_CHARS)).trim();
   }
 
   function openPopover(anchor) {
@@ -515,15 +524,32 @@
   }
 
   function loadAnnotations() {
-    return fetch(apiURL.toString(), {headers: {"Accept": "application/json"}})
+    var headers = {"Accept": "application/json"};
+    if (annotationETag) headers["If-None-Match"] = annotationETag;
+    return fetch(apiURL.toString(), {headers: headers})
       .then(function (response) {
+        if (response.status === 304) return null;
         if (!response.ok) throw new Error("annotations unavailable");
+        annotationETag = response.headers.get("ETag") || "";
         return response.json();
       })
       .then(function (data) {
+        if (!data) return;
         addAnnotations(data.annotations || []);
       })
       .catch(function () {});
+  }
+
+  function scheduleAnnotationPoll() {
+    window.clearTimeout(pollTimer);
+    if (document.hidden) {
+      pollTimer = null;
+      return;
+    }
+    var jitter = Math.floor(Math.random() * ANNOTATION_POLL_JITTER_MS);
+    pollTimer = window.setTimeout(function () {
+      loadAnnotations().finally(scheduleAnnotationPoll);
+    }, ANNOTATION_POLL_INTERVAL_MS + jitter);
   }
 
   function addAnnotations(items) {

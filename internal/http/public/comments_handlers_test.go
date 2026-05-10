@@ -358,6 +358,13 @@ func TestAnnotationAPICreatesPublicAnnotation(t *testing.T) {
 	if listRec.Code != http.StatusOK {
 		t.Fatalf("expected list ok, got %d body=%s", listRec.Code, listRec.Body.String())
 	}
+	etag := listRec.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("expected annotations list ETag")
+	}
+	if got := listRec.Header().Get("Access-Control-Expose-Headers"); got != "ETag" {
+		t.Fatalf("expected ETag exposed for CORS clients, got %q", got)
+	}
 	var listed struct {
 		Annotations []domain.PublicAnnotation `json:"annotations"`
 	}
@@ -366,6 +373,14 @@ func TestAnnotationAPICreatesPublicAnnotation(t *testing.T) {
 	}
 	if len(listed.Annotations) != 1 || listed.Annotations[0].SelectedText != "selected text" {
 		t.Fatalf("expected one listed annotation, got %#v", listed.Annotations)
+	}
+	cachedListReq := httptest.NewRequest(http.MethodGet, "/api/v1/sites/test-site/pages/%2Fposts%2Finline/annotations", nil)
+	cachedListReq.Header.Set("Origin", "https://allowed.example")
+	cachedListReq.Header.Set("If-None-Match", etag)
+	cachedListRec := httptest.NewRecorder()
+	router.ServeHTTP(cachedListRec, cachedListReq)
+	if cachedListRec.Code != http.StatusNotModified {
+		t.Fatalf("expected cached list 304, got %d body=%s", cachedListRec.Code, cachedListRec.Body.String())
 	}
 
 	commentsReq := httptest.NewRequest(http.MethodGet, "/api/v1/sites/test-site/pages/%2Fposts%2Finline/comments", nil)
