@@ -15,10 +15,36 @@
   var script = document.currentScript;
   if (!script) return;
 
+  function normalizePublicTheme(value) {
+    value = String(value || "").toLowerCase().trim();
+    return value === "light" || value === "dark" || value === "minimal" || value === "inherit" ? value : "auto";
+  }
+  function deadcommentsAPI() {
+    var api = window.deadcomments || {};
+    var instances = api._instances || [];
+    api._instances = instances;
+    api.setTheme = function (value) {
+      var next = normalizePublicTheme(value);
+      api.theme = next;
+      instances.slice().forEach(function (instance) {
+        if (instance && typeof instance.setTheme === "function") instance.setTheme(next);
+      });
+      return next;
+    };
+    window.deadcomments = api;
+    return api;
+  }
+  function registerDeadcommentsInstance(instance) {
+    var api = deadcommentsAPI();
+    api._instances.push(instance);
+    if (api.theme) instance.setTheme(api.theme);
+    return api;
+  }
+
   var site = script.getAttribute("data-site");
   var page = script.getAttribute("data-page");
   var targetSelector = script.getAttribute("data-target") || "#comments";
-  var theme = script.getAttribute("data-theme") || "auto";
+  var theme = normalizePublicTheme(script.getAttribute("data-theme") || "auto");
   var sort = normalizeSort(script.getAttribute("data-sort") || "oldest");
   var inputPosition = normalizeInputPosition(script.getAttribute("data-input-position") || "bottom");
   var showAnnotations = normalizeBooleanAttribute(script.getAttribute("data-show-annotations"), true);
@@ -198,14 +224,41 @@
   iframe.style.height = minHeight + "px";
   iframe.setAttribute("scrolling", "no");
 
+  var iframeReady = false;
+
   function sendInheritedTheme() {
-    if (theme !== "inherit" || !iframe.contentWindow) return;
+    if (theme !== "inherit" || !iframeReady || !iframe.contentWindow) return;
     var inheritedData = currentInheritedTheme();
     if (!inheritedData) return;
     iframe.contentWindow.postMessage({type: "deadcomments:theme", theme: inheritedData}, src.origin);
   }
+  function sendExplicitTheme() {
+    if (theme === "inherit" || !iframeReady || !iframe.contentWindow) return;
+    iframe.contentWindow.postMessage({type: "deadcomments:setTheme", theme: theme}, src.origin);
+  }
+  function setWidgetTheme(nextTheme) {
+    theme = normalizePublicTheme(nextTheme);
+    src.searchParams.set("theme", theme);
+    if (!iframe.getAttribute("src")) {
+      iframe.srcdoc = loadingDocument(theme, theme === "inherit" ? currentInheritedTheme() : null);
+      return;
+    }
+    if (!iframeReady) {
+      iframe.src = src.toString();
+      return;
+    }
+    if (theme === "inherit") {
+      sendInheritedTheme();
+      return;
+    }
+    sendExplicitTheme();
+  }
   var themeTimer = null;
-  iframe.addEventListener("load", sendInheritedTheme);
+  iframe.addEventListener("load", function () {
+    if (iframe.getAttribute("src")) iframeReady = true;
+    if (theme === "inherit") sendInheritedTheme();
+    else sendExplicitTheme();
+  });
   window.addEventListener("resize", function () {
     window.clearTimeout(themeTimer);
     themeTimer = window.setTimeout(sendInheritedTheme, 100);
@@ -245,6 +298,7 @@
   });
 
   target.appendChild(iframe);
+  registerDeadcommentsInstance({setTheme: setWidgetTheme});
   window.requestAnimationFrame(function () {
     iframe.removeAttribute("srcdoc");
     iframe.src = src.toString();

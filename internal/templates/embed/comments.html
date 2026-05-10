@@ -52,6 +52,7 @@
     window.addEventListener("message", function (event) {
       if (!parentOrigin || event.origin !== parentOrigin || !event.data) return;
       if (event.data.type === "deadcomments:theme") applyInheritedTheme(event.data.theme);
+      if (event.data.type === "deadcomments:setTheme") applyTheme(event.data.theme);
       if (event.data.type === "deadcomments:commentFocus") highlightComment(event.data.comment_id);
       if (event.data.type === "deadcomments:commentCreated") refreshExternalComment(event.data.comment);
     });
@@ -94,6 +95,34 @@
         }
       });
       sendHeight();
+    }
+    function normalizeTheme(value) {
+      value = String(value || "").toLowerCase().trim();
+      return value === "light" || value === "dark" || value === "minimal" || value === "inherit" ? value : "auto";
+    }
+    function applyTheme(value) {
+      var next = normalizeTheme(value);
+      document.documentElement.dataset.theme = next;
+      if (next !== "inherit") clearInheritedTheme();
+      sendHeight();
+    }
+    function clearInheritedTheme() {
+      [
+        "--dc-text",
+        "--dc-muted",
+        "--dc-border",
+        "--dc-card",
+        "--dc-surface",
+        "--dc-accent",
+        "--dc-danger",
+        "--dc-success",
+        "--dc-success-bg",
+        "--dc-warning",
+        "--dc-warning-bg",
+        "--dc-font"
+      ].forEach(function (name) {
+        document.documentElement.style.removeProperty(name);
+      });
     }
     function readProfile() {
       try {

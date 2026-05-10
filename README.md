@@ -89,6 +89,16 @@ Use explicit `data-page` keys. `data-page="auto"` is supported as a convenience 
 
 Use `data-theme="inherit"` when embedding into a page whose colors should drive the widget. The host script reads the target container's computed text/background colors and sends safe theme variables into the iframe.
 
+Host applications can also control both the comments iframe and inline annotation UI explicitly:
+
+```js
+window.deadcomments?.setTheme("dark")
+window.deadcomments?.setTheme("light")
+window.deadcomments?.setTheme("auto")
+```
+
+This is the recommended integration point for site-level theme switches. The API updates every loaded deadcomments widget on the page, including the annotation sidebar.
+
 Use `data-locale="uk"` for Ukrainian widget copy. Supported locales are `en` and `uk`; unsupported values fall back to English. If `data-locale` is omitted, the widget uses the host page `<html lang>` or browser language.
 
 Use `data-input-position="top"` to render the main comment form above the comment list. The default is `bottom`.

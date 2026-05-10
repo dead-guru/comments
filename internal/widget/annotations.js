@@ -4,9 +4,36 @@
   var script = document.currentScript;
   if (!script) return;
 
+  function normalizePublicTheme(value) {
+    value = String(value || "").toLowerCase().trim();
+    return value === "light" || value === "dark" || value === "minimal" || value === "inherit" ? value : "auto";
+  }
+  function deadcommentsAPI() {
+    var api = window.deadcomments || {};
+    var instances = api._instances || [];
+    api._instances = instances;
+    api.setTheme = function (value) {
+      var next = normalizePublicTheme(value);
+      api.theme = next;
+      instances.slice().forEach(function (instance) {
+        if (instance && typeof instance.setTheme === "function") instance.setTheme(next);
+      });
+      return next;
+    };
+    window.deadcomments = api;
+    return api;
+  }
+  function registerDeadcommentsInstance(instance) {
+    var api = deadcommentsAPI();
+    api._instances.push(instance);
+    if (api.theme) instance.setTheme(api.theme);
+    return api;
+  }
+
   var site = script.getAttribute("data-site");
   var page = script.getAttribute("data-page");
   var contentSelector = script.getAttribute("data-content-selector") || script.getAttribute("data-selector") || "article, main";
+  var theme = normalizePublicTheme(script.getAttribute("data-theme") || "auto");
   var locale = normalizeLocale(script.getAttribute("data-locale") || document.documentElement.lang || navigator.language || "en");
   var minSelectionLength = clampNumber(script.getAttribute("data-min-selection-length"), 2, 1, 200);
   var maxSelectionLength = clampNumber(script.getAttribute("data-max-selection-length"), 2000, 100, 5000);
@@ -29,6 +56,8 @@
   commentsURL = new URL("/api/v1/sites/" + encodeURIComponent(site) + "/pages/" + encodeURIComponent(page) + "/comments", script.src);
 
   injectStyles();
+  applyAnnotationTheme(theme);
+  registerDeadcommentsInstance({setTheme: applyAnnotationTheme});
   assignRootAnchors();
   loadAnnotations();
 
@@ -141,6 +170,15 @@
     var n = Number(value);
     if (!Number.isFinite(n)) return fallback;
     return Math.max(min, Math.min(max, Math.floor(n)));
+  }
+
+  function applyAnnotationTheme(nextTheme) {
+    theme = normalizePublicTheme(nextTheme);
+    if (theme === "auto" || theme === "inherit") {
+      document.documentElement.removeAttribute("data-deadcomments-theme");
+      return;
+    }
+    document.documentElement.setAttribute("data-deadcomments-theme", theme);
   }
 
   function cssEscape(value) {
@@ -864,7 +902,13 @@
       ".dc-annotation-panel-reply{border-top:1px solid #30363d;margin-top:16px;padding-top:16px}.dc-annotation-reply-form,.dc-annotation-comment-reply-form{display:block}.dc-annotation-comment-reply-form{border:1px solid #30363d;border-radius:8px;margin:10px 0 14px;padding:12px;background:#010409}.dc-annotation-reply-form .dc-annotation-title,.dc-annotation-comment-reply-form .dc-annotation-title{font-weight:800;font-size:15px;margin-bottom:8px}",
       ".dc-annotation-toast{position:fixed;z-index:2147483002;left:50%;bottom:24px;transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:min(520px,calc(100vw - 32px));border-radius:8px;padding:11px 14px;background:#161b22;color:#e6edf3;border:1px solid #30363d;box-shadow:0 12px 32px rgba(0,0,0,.3);transition:opacity .16s ease,transform .16s ease;font:14px/1.45 ui-sans-serif,system-ui}.dc-annotation-toast.is-visible{opacity:1;transform:translate(-50%,0)}.dc-annotation-toast.is-success{border-color:#2ea043;color:#3fb950}.dc-annotation-toast.is-warning{border-color:#bb8009;color:#d29922}",
       "@media(max-width:640px){.dc-annotation-grid,.dc-annotation-hints{grid-template-columns:1fr}.dc-annotation-popover{position:fixed!important;left:12px!important;right:12px!important;top:auto!important;bottom:12px!important;width:auto!important;max-height:calc(100vh - 24px);overflow:auto}.dc-annotation-panel{width:100vw}}",
-      "@media(prefers-color-scheme:light){.dc-annotation-popover,.dc-annotation-panel{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-popover input,.dc-annotation-popover textarea,.dc-annotation-reply-form input,.dc-annotation-reply-form textarea,.dc-annotation-comment-reply-form input,.dc-annotation-comment-reply-form textarea,.dc-annotation-comment,.dc-annotation-comment-reply-form{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-comment header,.dc-annotation-comment-actions,.dc-annotation-panel blockquote{background:#f6f8fa;border-color:#d0d7de}.dc-annotation-popover label,.dc-annotation-reply-form label,.dc-annotation-comment-reply-form label,.dc-annotation-hints,.dc-annotation-comment time{color:#57606a}.dc-annotation-submit{background:#1f883d}.dc-annotation-submit:hover{background:#1a7f37}.dc-annotation-cancel:hover{background:#f6f8fa;color:#24292f}.dc-annotation-panel-close{background:#f6f8fa;color:#24292f;border-color:#d0d7de}.dc-annotation-panel-close:hover{background:#eaeef2;border-color:#afb8c1}.dc-annotation-body a,.dc-annotation-comment-reply:hover{color:#0969da}}"
+      "@media(prefers-color-scheme:light){.dc-annotation-popover,.dc-annotation-panel{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-popover input,.dc-annotation-popover textarea,.dc-annotation-reply-form input,.dc-annotation-reply-form textarea,.dc-annotation-comment-reply-form input,.dc-annotation-comment-reply-form textarea,.dc-annotation-comment,.dc-annotation-comment-reply-form{background:#fff;color:#24292f;border-color:#d0d7de}.dc-annotation-comment header,.dc-annotation-comment-actions,.dc-annotation-panel blockquote{background:#f6f8fa;border-color:#d0d7de}.dc-annotation-popover label,.dc-annotation-reply-form label,.dc-annotation-comment-reply-form label,.dc-annotation-hints,.dc-annotation-comment time{color:#57606a}.dc-annotation-submit{background:#1f883d}.dc-annotation-submit:hover{background:#1a7f37}.dc-annotation-cancel:hover{background:#f6f8fa;color:#24292f}.dc-annotation-panel-close{background:#f6f8fa;color:#24292f;border-color:#d0d7de}.dc-annotation-panel-close:hover{background:#eaeef2;border-color:#afb8c1}.dc-annotation-body a,.dc-annotation-comment-reply:hover{color:#0969da}}",
+      ":root[data-deadcomments-theme=light] .dc-annotation-popover,:root[data-deadcomments-theme=light] .dc-annotation-panel,:root[data-deadcomments-theme=minimal] .dc-annotation-popover,:root[data-deadcomments-theme=minimal] .dc-annotation-panel{background:#fff;color:#24292f;border-color:#d0d7de}",
+      ":root[data-deadcomments-theme=light] .dc-annotation-popover input,:root[data-deadcomments-theme=light] .dc-annotation-popover textarea,:root[data-deadcomments-theme=light] .dc-annotation-reply-form input,:root[data-deadcomments-theme=light] .dc-annotation-reply-form textarea,:root[data-deadcomments-theme=light] .dc-annotation-comment-reply-form input,:root[data-deadcomments-theme=light] .dc-annotation-comment-reply-form textarea,:root[data-deadcomments-theme=light] .dc-annotation-comment,:root[data-deadcomments-theme=light] .dc-annotation-comment-reply-form,:root[data-deadcomments-theme=minimal] .dc-annotation-popover input,:root[data-deadcomments-theme=minimal] .dc-annotation-popover textarea,:root[data-deadcomments-theme=minimal] .dc-annotation-reply-form input,:root[data-deadcomments-theme=minimal] .dc-annotation-reply-form textarea,:root[data-deadcomments-theme=minimal] .dc-annotation-comment-reply-form input,:root[data-deadcomments-theme=minimal] .dc-annotation-comment-reply-form textarea,:root[data-deadcomments-theme=minimal] .dc-annotation-comment,:root[data-deadcomments-theme=minimal] .dc-annotation-comment-reply-form{background:#fff;color:#24292f;border-color:#d0d7de}",
+      ":root[data-deadcomments-theme=light] .dc-annotation-comment header,:root[data-deadcomments-theme=light] .dc-annotation-comment-actions,:root[data-deadcomments-theme=light] .dc-annotation-panel blockquote,:root[data-deadcomments-theme=minimal] .dc-annotation-comment header,:root[data-deadcomments-theme=minimal] .dc-annotation-comment-actions,:root[data-deadcomments-theme=minimal] .dc-annotation-panel blockquote{background:#f6f8fa;border-color:#d0d7de}",
+      ":root[data-deadcomments-theme=light] .dc-annotation-popover label,:root[data-deadcomments-theme=light] .dc-annotation-reply-form label,:root[data-deadcomments-theme=light] .dc-annotation-comment-reply-form label,:root[data-deadcomments-theme=light] .dc-annotation-hints,:root[data-deadcomments-theme=light] .dc-annotation-comment time,:root[data-deadcomments-theme=minimal] .dc-annotation-popover label,:root[data-deadcomments-theme=minimal] .dc-annotation-reply-form label,:root[data-deadcomments-theme=minimal] .dc-annotation-comment-reply-form label,:root[data-deadcomments-theme=minimal] .dc-annotation-hints,:root[data-deadcomments-theme=minimal] .dc-annotation-comment time{color:#57606a}",
+      ":root[data-deadcomments-theme=light] .dc-annotation-submit,:root[data-deadcomments-theme=minimal] .dc-annotation-submit{background:#1f883d}:root[data-deadcomments-theme=light] .dc-annotation-submit:hover,:root[data-deadcomments-theme=minimal] .dc-annotation-submit:hover{background:#1a7f37}:root[data-deadcomments-theme=light] .dc-annotation-cancel:hover,:root[data-deadcomments-theme=minimal] .dc-annotation-cancel:hover{background:#f6f8fa;color:#24292f}:root[data-deadcomments-theme=light] .dc-annotation-panel-close,:root[data-deadcomments-theme=minimal] .dc-annotation-panel-close{background:#f6f8fa;color:#24292f;border-color:#d0d7de}:root[data-deadcomments-theme=light] .dc-annotation-panel-close:hover,:root[data-deadcomments-theme=minimal] .dc-annotation-panel-close:hover{background:#eaeef2;border-color:#afb8c1}:root[data-deadcomments-theme=light] .dc-annotation-body a,:root[data-deadcomments-theme=light] .dc-annotation-comment-reply:hover,:root[data-deadcomments-theme=minimal] .dc-annotation-body a,:root[data-deadcomments-theme=minimal] .dc-annotation-comment-reply:hover{color:#0969da}",
+      ":root[data-deadcomments-theme=dark] .dc-annotation-popover,:root[data-deadcomments-theme=dark] .dc-annotation-panel{background:#0d1117;color:#e6edf3;border-color:#30363d}:root[data-deadcomments-theme=dark] .dc-annotation-popover input,:root[data-deadcomments-theme=dark] .dc-annotation-popover textarea,:root[data-deadcomments-theme=dark] .dc-annotation-reply-form input,:root[data-deadcomments-theme=dark] .dc-annotation-reply-form textarea,:root[data-deadcomments-theme=dark] .dc-annotation-comment-reply-form input,:root[data-deadcomments-theme=dark] .dc-annotation-comment-reply-form textarea,:root[data-deadcomments-theme=dark] .dc-annotation-comment,:root[data-deadcomments-theme=dark] .dc-annotation-comment-reply-form{background:#010409;color:#e6edf3;border-color:#30363d}:root[data-deadcomments-theme=dark] .dc-annotation-comment header,:root[data-deadcomments-theme=dark] .dc-annotation-comment-actions,:root[data-deadcomments-theme=dark] .dc-annotation-panel blockquote{background:#161b22;border-color:#30363d}:root[data-deadcomments-theme=dark] .dc-annotation-popover label,:root[data-deadcomments-theme=dark] .dc-annotation-reply-form label,:root[data-deadcomments-theme=dark] .dc-annotation-comment-reply-form label,:root[data-deadcomments-theme=dark] .dc-annotation-hints,:root[data-deadcomments-theme=dark] .dc-annotation-comment time{color:#8b949e}:root[data-deadcomments-theme=dark] .dc-annotation-body a,:root[data-deadcomments-theme=dark] .dc-annotation-comment-reply:hover{color:#58a6ff}"
     ].join("");
     document.head.appendChild(style);
   }
