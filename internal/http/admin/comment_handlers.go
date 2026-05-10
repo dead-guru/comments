@@ -46,7 +46,7 @@ func (h *Handlers) ExportComments(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="deadcomments-comments.csv"`)
 		out := csv.NewWriter(w)
-		_ = out.Write([]string{"id", "type", "annotation_id", "annotation_text", "site_key", "page_key", "page_title", "author", "status", "moderation_reason", "body_markdown", "created_at"})
+		_ = out.Write([]string{"id", "type", "annotation_id", "annotation_selector", "annotation_text", "site_key", "page_key", "page_title", "author", "status", "moderation_reason", "body_markdown", "created_at"})
 		for _, c := range comments {
 			reason := ""
 			if c.ModerationReason != nil {
@@ -54,13 +54,15 @@ func (h *Handlers) ExportComments(w http.ResponseWriter, r *http.Request) {
 			}
 			commentType := "comment"
 			annotationID := ""
+			annotationSelector := ""
 			annotationText := ""
 			if c.Annotation != nil {
 				commentType = "annotation"
 				annotationID = c.Annotation.ID
+				annotationSelector = c.Annotation.Selector
 				annotationText = c.Annotation.SelectedText
 			}
-			_ = out.Write([]string{c.ID, commentType, annotationID, annotationText, c.SiteKey, c.PageKey, c.PageTitle, c.AuthorDisplayName, string(c.Status), reason, c.BodyMarkdown, c.CreatedAt.Format("2006-01-02T15:04:05Z07:00")})
+			_ = out.Write([]string{c.ID, commentType, annotationID, annotationSelector, annotationText, c.SiteKey, c.PageKey, c.PageTitle, c.AuthorDisplayName, string(c.Status), reason, c.BodyMarkdown, c.CreatedAt.Format("2006-01-02T15:04:05Z07:00")})
 		}
 		out.Flush()
 		return
@@ -148,6 +150,10 @@ func commentListFilterFromRequest(r *http.Request) repository.CommentListFilter 
 		Search:        strings.TrimSpace(q.Get("q")),
 		IPHash:        strings.TrimSpace(q.Get("ip_hash")),
 		UserAgentHash: strings.TrimSpace(q.Get("ua_hash")),
+	}
+	switch kind := strings.TrimSpace(q.Get("type")); kind {
+	case "annotation", "comment":
+		filter.Kind = kind
 	}
 	if raw := strings.TrimSpace(q.Get("site_id")); raw != "" {
 		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {

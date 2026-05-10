@@ -6,6 +6,11 @@
     <option value="">Any status</option>
     <option value="pending" {{if eq (.Filters.Get "status") "pending"}}selected{{end}}>pending</option><option value="approved" {{if eq (.Filters.Get "status") "approved"}}selected{{end}}>approved</option><option value="rejected" {{if eq (.Filters.Get "status") "rejected"}}selected{{end}}>rejected</option><option value="spam" {{if eq (.Filters.Get "status") "spam"}}selected{{end}}>spam</option><option value="deleted" {{if eq (.Filters.Get "status") "deleted"}}selected{{end}}>deleted</option>
   </select>
+  <select name="type" aria-label="Comment type">
+    <option value="">Any type</option>
+    <option value="comment" {{if eq (.Filters.Get "type") "comment"}}selected{{end}}>comments only</option>
+    <option value="annotation" {{if eq (.Filters.Get "type") "annotation"}}selected{{end}}>annotations only</option>
+  </select>
   <input name="ip_hash" value="{{.Filters.Get "ip_hash"}}" placeholder="IP hash">
   <input name="ua_hash" value="{{.Filters.Get "ua_hash"}}" placeholder="User-agent hash">
   <button>Filter</button>

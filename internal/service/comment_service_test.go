@@ -190,6 +190,23 @@ func TestAnnotationCreationUsesCommentPipeline(t *testing.T) {
 	if annotations[0].Comment.BodyHTML == "" || !strings.Contains(annotations[0].Comment.BodyHTML, "<strong>Inline</strong>") {
 		t.Fatalf("expected rendered markdown body, got %q", annotations[0].Comment.BodyHTML)
 	}
+	adminAnnotations, err := deps.commentSvc.AdminListFiltered(context.Background(), repository.CommentListFilter{Kind: "annotation", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(adminAnnotations) != 1 || adminAnnotations[0].Annotation == nil {
+		t.Fatalf("expected one annotation comment in admin filter, got %d", len(adminAnnotations))
+	}
+	if adminAnnotations[0].Annotation.Selector != "#article" {
+		t.Fatalf("expected annotation selector to be available to admin UI, got %q", adminAnnotations[0].Annotation.Selector)
+	}
+	adminRegularComments, err := deps.commentSvc.AdminListFiltered(context.Background(), repository.CommentListFilter{Kind: "comment", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(adminRegularComments) != 0 {
+		t.Fatalf("expected annotation root to be excluded from comment-only filter, got %d", len(adminRegularComments))
+	}
 }
 
 func TestAnnotationPublicByPageIncludesApprovedReplies(t *testing.T) {

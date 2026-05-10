@@ -22,6 +22,12 @@ func TestCommentsQueueTemplateExecutes(t *testing.T) {
 		BodyMarkdown:      "Needs review",
 		Status:            domain.CommentPending,
 		CreatedAt:         time.Now(),
+		Annotation: &domain.CommentAnnotation{
+			ID:           "annotation-1",
+			Selector:     "#article",
+			SelectedText: "Important selected text",
+			TextHash:     "hash",
+		},
 	}
 	data := map[string]any{
 		"CSRFToken":   "csrf",

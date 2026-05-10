@@ -78,6 +78,7 @@ type PublicComment struct {
 
 type CommentAnnotation struct {
 	ID              string `json:"id"`
+	Selector        string `json:"selector"`
 	SelectedText    string `json:"selected_text"`
 	SelectionPrefix string `json:"selection_prefix"`
 	SelectionSuffix string `json:"selection_suffix"`

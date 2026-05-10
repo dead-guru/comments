@@ -56,7 +56,9 @@
         {{if .Annotation}}
         <div class="admin-annotation-card compact">
           <span class="annotation-badge">Annotation</span>
+          <div class="admin-annotation-context-label">Comment on selected text</div>
           <blockquote>{{.Annotation.SelectedText}}</blockquote>
+          {{if .Annotation.Selector}}<div class="admin-annotation-selector"><code>{{.Annotation.Selector}}</code></div>{{end}}
         </div>
         {{end}}
         <div class="comment-preview">{{safeHTML .BodyHTML}}</div>

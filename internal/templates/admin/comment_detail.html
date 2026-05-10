@@ -26,6 +26,7 @@
   <blockquote>{{.Comment.Annotation.SelectedText}}</blockquote>
   <dl class="meta-list">
     <dt>Annotation ID</dt><dd><code>{{.Comment.Annotation.ID}}</code></dd>
+    <dt>Selector</dt><dd>{{if .Comment.Annotation.Selector}}<code>{{.Comment.Annotation.Selector}}</code>{{else}}<span class="muted">none</span>{{end}}</dd>
     <dt>Text hash</dt><dd><code>{{.Comment.Annotation.TextHash}}</code></dd>
     <dt>Offsets</dt><dd>{{if .Comment.Annotation.TextStart}}{{.Comment.Annotation.TextStart}}{{else}}?{{end}} → {{if .Comment.Annotation.TextEnd}}{{.Comment.Annotation.TextEnd}}{{else}}?{{end}}</dd>
   </dl>

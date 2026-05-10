@@ -187,6 +187,16 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
   border-radius: var(--radius);
 }
+.admin-annotation-context-label,
+.admin-annotation-selector {
+  color: var(--muted);
+  font-size: 12px;
+}
+.admin-annotation-selector {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .annotation-badge {
   display: inline-flex;
   width: fit-content;

@@ -65,6 +65,7 @@ func (r *CommentRepository) ByPage(ctx context.Context, pageID int64) ([]*domain
 type CommentListFilter struct {
 	Status        string
 	Search        string
+	Kind          string
 	SiteID        *int64
 	PageID        *int64
 	IPHash        string
@@ -99,6 +100,12 @@ func (r *CommentRepository) ListFiltered(ctx context.Context, filter CommentList
 	if filter.UserAgentHash != "" {
 		q += ` AND comments.user_agent_hash=?`
 		args = append(args, filter.UserAgentHash)
+	}
+	switch filter.Kind {
+	case "annotation":
+		q += ` AND annotations.id IS NOT NULL`
+	case "comment":
+		q += ` AND annotations.id IS NULL`
 	}
 	if filter.Search != "" {
 		q += ` AND (comments.body_markdown LIKE ? OR comments.author_name LIKE ? OR comments.author_display_name LIKE ?)`
@@ -212,11 +219,11 @@ func publicCommentOrder(sort domain.CommentSort) string {
 func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, error) {
 	var c domain.Comment
 	var parent, root, siteKey, pageKey, pageTitle, pageURL, displayName, tripcodePublic, email, avatar, website, ipHash, uaHash, metadata, moderationReason, edited, badgeType, badgeLabel sql.NullString
-	var annotationID, annotationText, annotationPrefix, annotationSuffix, annotationHash sql.NullString
+	var annotationID, annotationSelector, annotationText, annotationPrefix, annotationSuffix, annotationHash sql.NullString
 	var annotationStart, annotationEnd sql.NullInt64
 	var identityID sql.NullInt64
 	var created, updated string
-	if err := scanner.Scan(&c.ID, &c.SiteID, &siteKey, &c.PageID, &pageKey, &pageTitle, &pageURL, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &annotationID, &annotationText, &annotationPrefix, &annotationSuffix, &annotationStart, &annotationEnd, &annotationHash, &created, &updated, &edited); err != nil {
+	if err := scanner.Scan(&c.ID, &c.SiteID, &siteKey, &c.PageID, &pageKey, &pageTitle, &pageURL, &parent, &root, &c.Depth, &c.Path, &c.AuthorName, &displayName, &identityID, &tripcodePublic, &c.TripcodeKind, &badgeType, &badgeLabel, &email, &avatar, &website, &c.BodyMarkdown, &c.BodyHTML, &c.Status, &ipHash, &uaHash, &metadata, &moderationReason, &annotationID, &annotationSelector, &annotationText, &annotationPrefix, &annotationSuffix, &annotationStart, &annotationEnd, &annotationHash, &created, &updated, &edited); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -252,6 +259,7 @@ func scanComment(scanner interface{ Scan(...any) error }) (*domain.Comment, erro
 	if annotationID.Valid && annotationID.String != "" {
 		c.Annotation = &domain.CommentAnnotation{
 			ID:              annotationID.String,
+			Selector:        annotationSelector.String,
 			SelectedText:    annotationText.String,
 			SelectionPrefix: annotationPrefix.String,
 			SelectionSuffix: annotationSuffix.String,
@@ -294,6 +302,7 @@ const commentSelectSQL = `
 			LIMIT 1
 		) AS moderation_reason,
 		annotations.id,
+		COALESCE(annotations.selector, ''),
 		COALESCE(annotations.selected_text, ''),
 		COALESCE(annotations.selection_prefix, ''),
 		COALESCE(annotations.selection_suffix, ''),
