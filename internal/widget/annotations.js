@@ -18,7 +18,6 @@
   var activeSelection = null;
   var popover = null;
   var panel = null;
-  var selectionMarker = null;
   var selectionTimer = null;
   var pointerSelecting = false;
   var messageTimer = null;
@@ -203,7 +202,7 @@
       prefix: contextBefore(root.textContent || "", offsets.start),
       suffix: contextAfter(root.textContent || "", offsets.end)
     };
-    openPopover(markActiveSelection(range) || range);
+    openPopover(range);
   }
 
   function rangeOffsets(root, range) {
@@ -223,32 +222,14 @@
     return text.slice(offset, Math.min(text.length, offset + 160)).trim();
   }
 
-  function markActiveSelection(range) {
-    clearSelectionMarker();
-    var marker = document.createElement("mark");
-    marker.className = "dc-annotation-selection";
-    try {
-      var fragment = range.extractContents();
-      marker.appendChild(fragment);
-      range.insertNode(marker);
-      selectionMarker = marker;
-      return marker;
-    } catch (_) {
-      return null;
-    }
-  }
-
   function openPopover(anchor) {
-    closePopover({keepSelection: true});
+    closePopover();
     popover = createAnnotationForm("dc-annotation-popover", {quote: true, title: t("add"), submit: t("submit")});
     popover._dcSelection = activeSelection;
     popover.addEventListener("submit", submitAnnotation);
     popover.querySelector(".dc-annotation-cancel").addEventListener("click", closePopover);
     document.body.appendChild(popover);
     positionPopover(popover, anchor);
-    window.setTimeout(function () {
-      if (popover) popover.querySelector('textarea[name="body_markdown"]').focus();
-    }, 0);
   }
 
   function createAnnotationForm(className, options) {
@@ -306,21 +287,9 @@
     node.style.top = top + "px";
   }
 
-  function closePopover(options) {
+  function closePopover() {
     if (popover && popover.parentNode) popover.parentNode.removeChild(popover);
     popover = null;
-    if (!options || !options.keepSelection) clearSelectionMarker();
-  }
-
-  function clearSelectionMarker() {
-    if (!selectionMarker) return;
-    var parent = selectionMarker.parentNode;
-    if (parent) {
-      while (selectionMarker.firstChild) parent.insertBefore(selectionMarker.firstChild, selectionMarker);
-      parent.removeChild(selectionMarker);
-      parent.normalize();
-    }
-    selectionMarker = null;
   }
 
   function profileKey() {
@@ -881,7 +850,6 @@
     style.id = "dc-annotation-styles";
     style.textContent = [
       ".dc-annotation-mark{position:relative;background:rgba(255,212,59,.42);color:inherit;border-radius:3px;box-shadow:0 0 0 2px rgba(255,212,59,.2);box-decoration-break:clone;-webkit-box-decoration-break:clone;cursor:pointer;padding:0 .04em}",
-      ".dc-annotation-selection{background:rgba(255,212,59,.48);color:inherit;border-radius:3px;box-shadow:0 0 0 2px rgba(255,212,59,.26);padding:0 .04em}",
       ".dc-annotation-mark:hover,.dc-annotation-mark:focus{background:rgba(255,212,59,.62);outline:2px solid rgba(9,105,218,.45);outline-offset:2px}",
       ".dc-annotation-mark.is-focused{background:rgba(88,166,255,.42);box-shadow:0 0 0 3px rgba(88,166,255,.28)}",
       ".dc-annotation-mark.is-pending{background:rgba(210,153,34,.32)}",
