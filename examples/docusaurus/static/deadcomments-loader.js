@@ -4,7 +4,22 @@
   var attempts = 0;
   var maxAttempts = 40;
 
+  function currentTheme() {
+    var value = (document.documentElement.getAttribute("data-theme") || "").toLowerCase();
+    return value === "dark" || value === "light" ? value : "auto";
+  }
+
+  function syncTheme() {
+    var theme = currentTheme();
+    window.deadcomments = window.deadcomments || {};
+    window.deadcomments.theme = theme;
+    if (typeof window.deadcomments.setTheme === "function") {
+      window.deadcomments.setTheme(theme);
+    }
+  }
+
   function loadComments() {
+    syncTheme();
     document.querySelectorAll("[data-deadcomments-page]").forEach(function (node, index) {
       if (node.dataset.deadcommentsLoaded === "1") return;
       node.dataset.deadcommentsLoaded = "1";
@@ -15,7 +30,7 @@
       script.setAttribute("data-site", "docs-demo");
       script.setAttribute("data-page", node.getAttribute("data-deadcomments-page"));
       script.setAttribute("data-target", "#" + node.id);
-      script.setAttribute("data-theme", node.getAttribute("data-theme") || "auto");
+      script.setAttribute("data-theme", node.getAttribute("data-theme") || currentTheme());
       script.setAttribute("data-sort", node.getAttribute("data-sort") || "oldest");
       script.setAttribute("data-input-position", node.getAttribute("data-input-position") || "bottom");
       script.setAttribute("data-show-annotations", node.getAttribute("data-show-annotations") || "true");
@@ -32,7 +47,7 @@
       script.setAttribute("data-site", "docs-demo");
       script.setAttribute("data-page", key);
       script.setAttribute("data-content-selector", node.getAttribute("data-content-selector") || ".theme-doc-markdown");
-      script.setAttribute("data-theme", node.getAttribute("data-theme") || "auto");
+      script.setAttribute("data-theme", node.getAttribute("data-theme") || currentTheme());
       script.setAttribute("data-locale", node.getAttribute("data-locale") || "en");
       document.head.appendChild(script);
     });
@@ -53,4 +68,5 @@
 
   document.addEventListener("docusaurus:routeDidUpdate", loadComments);
   new MutationObserver(loadComments).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 })();
